@@ -13,6 +13,8 @@ class SyntheticAssessment:
         self.predicate, self.context, self.excluded = predicate, context, excluded
         self.invalid = invalid
         self.calls = 0
+        self.flag_key = "possible"
+        self.negative_screen = False
 
     def infer(self, frames, prompt, deadline, output_schema=None):
         self.calls += 1
@@ -22,7 +24,7 @@ class SyntheticAssessment:
                     "observation": "Synthetic colored pattern.",
                     "checks": {
                         rule: {
-                            "possible": True,
+                            self.flag_key: not self.negative_screen,
                             "frame_index": 999
                             if self.invalid
                             else min(i, len(frames) - 1),
@@ -78,6 +80,28 @@ def test_compact_rejects_invented_indices_after_one_repair(clip, tmp_path, regis
         )
     assert error.value.code == "MODEL_OUTPUT_INVALID"
     assert model.calls == 2
+
+
+def test_observed_wording_maps_only_predefined_source_indices(clip, tmp_path, registry):
+    model = SyntheticAssessment()
+    model.flag_key = "trigger_observed"
+    detail, timeline = CompactPipeline(model, registry, screen_wording="observed").run(
+        clip, tmp_path, "a" * 32, time.time() + 60, lambda **kwargs: None
+    )
+    assert len(detail["events"]) == 2
+    assert all(e["timecode_sec"] in timeline.pts for e in detail["events"])
+
+
+def test_unused_negative_index_cannot_create_an_event(clip, tmp_path, registry):
+    model = SyntheticAssessment()
+    model.flag_key = "trigger_observed"
+    model.negative_screen = True
+    detail, _ = CompactPipeline(model, registry, screen_wording="observed").run(
+        clip, tmp_path, "a" * 32, time.time() + 60, lambda **kwargs: None
+    )
+    assert detail["events"] == []
+    assert detail["model_result"]["verdict"] == "no_violation"
+    assert model.calls == 1
 
 
 def test_native_temporal_patches_use_actual_source_pts():

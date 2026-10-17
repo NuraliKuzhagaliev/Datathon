@@ -17,7 +17,10 @@ from cashproof.inference.pipeline import (
 
 
 class CompactPipeline(Pipeline):
-    def __init__(self, model, registry, max_candidates=8):
+    def __init__(self, model, registry, max_candidates=8, screen_wording="possible"):
+        if screen_wording not in {"possible", "observed"}:
+            raise ValueError("Unknown experimental screening wording")
+        self.screen_wording = screen_wording
         self.stage_counts = {
             "screening_calls": 0,
             "possible_triggers": 0,
@@ -29,6 +32,7 @@ class CompactPipeline(Pipeline):
         }
         model.runtime_configuration = getattr(model, "runtime_configuration", {}) | {
             "experimental_pipeline": "compact explicit assessments v1",
+            "experimental_screen_wording": screen_wording,
             "experimental_pipeline_sha256": hashlib.sha256(
                 Path(__file__).read_bytes()
             ).hexdigest(),
@@ -64,14 +68,17 @@ class CompactPipeline(Pipeline):
             for i, f in enumerate(frames)
         ]
         if not verify:
+            flag_key = (
+                "trigger_observed" if self.screen_wording == "observed" else "possible"
+            )
             check = {
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
-                    "possible": {"type": "boolean"},
+                    flag_key: {"type": "boolean"},
                     "frame_index": {"anyOf": [frame_index, {"type": "null"}]},
                 },
-                "required": ["possible", "frame_index"],
+                "required": [flag_key, "frame_index"],
             }
             schema = {
                 "type": "object",
@@ -109,15 +116,20 @@ class CompactPipeline(Pipeline):
                 + "\nReturn JSON="
                 + json.dumps(schema, separators=(",", ":"))
             )
+            if self.screen_wording == "observed":
+                prompt = prompt.replace(
+                    "possible=true requires a visually supported action/omission candidate; use its frame index. For false use null.",
+                    "trigger_observed=true means a concrete listed action actually occurs visibly in these frames; use its frame index. A hypothetical possibility is false. Use false and null if that action is absent, unsupported or not visible; do not turn occlusion into proof of omission.",
+                )
 
             def parse(value):
                 if set(value["checks"]) != set(self.registry.enabled):
                     raise ValueError("Rule keys mismatch")
                 events = []
                 for rule_id, item in value["checks"].items():
-                    if not item["possible"]:
-                        if item["frame_index"] is not None:
-                            raise ValueError("Negative index must be null")
+                    if not item[flag_key]:
+                        # A negative finding never becomes evidence. The schema
+                        # still bounds any supplied but unused index.
                         continue
                     if item["frame_index"] is None:
                         raise ValueError("Candidate needs index")

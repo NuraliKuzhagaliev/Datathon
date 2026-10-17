@@ -31,10 +31,13 @@ def verify(model, directory: Path):
             "last_color": {"type": "string", "enum": ["red", "blue"]},
             "first_number": {"type": "integer", "enum": [17, 83]},
             "last_number": {"type": "integer", "enum": [17, 83]},
+            "first_is_red": {"type": "boolean"},
+            "last_is_red": {"type": "boolean"},
         },
     }
     schema["required"] = list(schema["properties"])
     correct = 0
+    booleans_correct = 0
     for i, order in enumerate([[0, 0, 1, 1], [1, 1, 0, 0]]):
         frames = [
             {"id": f"f{n}", "timestamp_sec": t, "path": str(paths[k])}
@@ -42,7 +45,7 @@ def verify(model, directory: Path):
         ]
         raw = model.infer(
             frames,
-            "Read the background color and large number at the BEGINNING, then at the END of this ordered synthetic sequence. Keep beginning and end separate. Return JSON="
+            "Read the background color and large number at the BEGINNING, then at the END of this ordered synthetic sequence. Keep beginning and end separate. Also truthfully answer whether the beginning and end backgrounds are red; use false for a blue background. Return JSON="
             + json.dumps(schema),
             time.time() + 90,
             output_schema=schema,
@@ -54,7 +57,13 @@ def verify(model, directory: Path):
             "last_color": "blue" if i == 0 else "red",
             "first_number": 17 if i == 0 else 83,
             "last_number": 83 if i == 0 else 17,
+            "first_is_red": i == 0,
+            "last_is_red": i != 0,
         }
+        booleans_correct += (
+            result["first_is_red"] == expected["first_is_red"]
+            and result["last_is_red"] == expected["last_is_red"]
+        )
         correct += result == expected
         (directory / f"synthetic-result-{i}.json").write_text(
             json.dumps(result), encoding="utf-8"
@@ -63,6 +72,7 @@ def verify(model, directory: Path):
         "synthetic_temporal_grounding": True,
         "cases": 2,
         "complete_ordering_correct": correct,
+        "boolean_pairs_correct": booleans_correct,
         "passed": correct == 2,
         "meaning": "Synthetic input-order control only, not bank-event accuracy.",
     }

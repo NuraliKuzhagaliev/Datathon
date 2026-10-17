@@ -32,6 +32,9 @@ def main():
     p.add_argument("--verify-grounding", action="store_true")
     p.add_argument("--experimental-compact", action="store_true")
     p.add_argument("--native-video", action="store_true")
+    p.add_argument(
+        "--screen-wording", choices=["possible", "observed"], default="possible"
+    )
     p.add_argument("--max-candidates", type=int, default=8)
     p.add_argument("--split", choices=["development", "validation"], required=True)
     p.add_argument(
@@ -54,6 +57,8 @@ def main():
         raise ValueError("Compact experiment requires the isolated NF4 adapter")
     if a.native_video and not a.experimental_compact:
         raise ValueError("Native video requires the isolated compact experiment")
+    if a.screen_wording != "possible" and not a.experimental_compact:
+        raise ValueError("Screening wording requires the isolated compact experiment")
     if a.experimental_nf4 and a.split != "development":
         raise ValueError("Experimental adapter cannot open validation")
     if a.split == "validation" and not a.freeze_from:
@@ -120,7 +125,9 @@ def main():
     if a.experimental_compact:
         from compact_pipeline import CompactPipeline
 
-        pipeline = CompactPipeline(model, registry, a.max_candidates)
+        pipeline = CompactPipeline(
+            model, registry, a.max_candidates, screen_wording=a.screen_wording
+        )
     else:
         pipeline = Pipeline(model, registry, a.max_candidates)
     if a.freeze_from:
