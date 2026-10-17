@@ -1,0 +1,9 @@
+{
+  "name": "@cashproof/desktop",
+  "version": "0.1.0",
+  "description": "CashProof evidence review workstation",
+  "author": "CashProof team",
+  "private": true,
+  "main": "main.cjs",
+  "dependencies": { "ajv": "8.20.0" }
+}

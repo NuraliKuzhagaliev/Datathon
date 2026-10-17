@@ -1,0 +1,23 @@
+// Generated. Do not edit.
+export declare const Error: (value: unknown) => boolean;
+export declare const UploadAccepted: (value: unknown) => boolean;
+export declare const EvidenceFrame: (value: unknown) => boolean;
+export declare const Violation: (value: unknown) => boolean;
+export declare const Processing: (value: unknown) => boolean;
+export declare const Failed: (value: unknown) => boolean;
+export declare const DonePositive: (value: unknown) => boolean;
+export declare const DoneNegative: (value: unknown) => boolean;
+export declare const JuryResult: (value: unknown) => boolean;
+export declare const Rule: (value: unknown) => boolean;
+export declare const RuleRegistry: (value: unknown) => boolean;
+export declare const ReviewInput: (value: unknown) => boolean;
+export declare const Review: (value: unknown) => boolean;
+export declare const UiEvent: (value: unknown) => boolean;
+export declare const CoverageSegment: (value: unknown) => boolean;
+export declare const TimeMapSegment: (value: unknown) => boolean;
+export declare const ReviewCue: (value: unknown) => boolean;
+export declare const CaseSummary: (value: unknown) => boolean;
+export declare const CaseList: (value: unknown) => boolean;
+export declare const CaseDetail: (value: unknown) => boolean;
+export declare const HealthLive: (value: unknown) => boolean;
+export declare const HealthReady: (value: unknown) => boolean;
