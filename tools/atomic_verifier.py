@@ -13,7 +13,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
     def __init__(self, model, registry, max_candidates=8):
         super().__init__(model, registry, max_candidates)
         model.runtime_configuration.update(
-            experimental_verifier="occurrence-specific independent checks v6; grounded exclusions; local image indices; dense onset refinement",
+            experimental_verifier="occurrence-specific independent checks v7; ungrounded opposite cannot clear exclusion; local indices and dense onset refinement",
             atomic_verifier_sha256=hashlib.sha256(
                 Path(__file__).read_bytes()
             ).hexdigest(),
@@ -29,6 +29,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
             atomic_unobservable_checks=0,
             joint_conditions_rejected=0,
             atomic_exclusion_checks=0,
+            ungrounded_exclusions_marked_unobservable=0,
         )
         self.uncertainty_spans = []
 
@@ -46,7 +47,15 @@ class AtomicFactPipeline(TriggerFactPipeline):
                 )
         return detail, timeline
 
-    def check(self, frames, statement, deadline, private_dir, focus=None):
+    def check(
+        self,
+        frames,
+        statement,
+        deadline,
+        private_dir,
+        focus=None,
+        require_counterevidence=False,
+    ):
         index = {"type": "integer", "enum": list(range(len(frames)))}
         schema = {
             "type": "object",
@@ -102,10 +111,15 @@ class AtomicFactPipeline(TriggerFactPipeline):
         )
 
         def parse(value):
-            if value["support"] != "unobservable" and not value["evidence_indices"]:
-                raise ValueError(
-                    "A positive or opposite condition needs actual source evidence"
-                )
+            if (
+                require_counterevidence
+                and value["support"] == "contradicted"
+                and not value["evidence_indices"]
+            ):
+                # A missing source witness cannot clear an exception. This is
+                # uncertain semantics, not a decoder/JSON failure or proof of absence.
+                self.stage_counts["ungrounded_exclusions_marked_unobservable"] += 1
+                value = dict(value, support="unobservable", first_supported_index=None)
             if value["support"] == "supported" and (
                 value["first_supported_index"] is None
                 or value["first_supported_index"] not in value["evidence_indices"]
@@ -182,6 +196,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
                 deadline,
                 private_dir,
                 focus,
+                require_counterevidence=True,
             )
             self.stage_counts["atomic_exclusion_checks"] += 1
             self.stage_counts["exclusions_present"] += (

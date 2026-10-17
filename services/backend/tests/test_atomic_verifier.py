@@ -241,12 +241,12 @@ def test_opposite_statement_without_frame_evidence_cannot_clear_an_exclusion(
         predicates={"observed": True},
         applicable=True,
     )
-    with pytest.raises(ProcessingError) as failure:
-        pipeline.ask(
-            [{"id": f"f{i}", "timestamp_sec": float(i)} for i in range(3)],
-            candidate,
-            time.time() + 60,
-            tmp_path / "private",
-        )
-    assert failure.value.code == "MODEL_OUTPUT_INVALID"
+    result = pipeline.ask(
+        [{"id": f"f{i}", "timestamp_sec": float(i)} for i in range(3)],
+        candidate,
+        time.time() + 60,
+        tmp_path / "private",
+    )
+    assert result.events == [] and result.visibility_limited
+    assert pipeline.stage_counts["ungrounded_exclusions_marked_unobservable"] == 1
     assert pipeline.stage_counts["eligible_assessments"] == 0
