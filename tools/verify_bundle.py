@@ -17,7 +17,7 @@ def main():
     manifest = json.loads(manifest_bytes)
     entries = list(manifest["files"].items())
     entries.append(("manifest.json", hashlib.sha256(manifest_bytes).hexdigest()))
-    archive = root.with_suffix(".zip")
+    archive = Path(str(root) + ".zip")
     temporary = archive.with_suffix(".zip.partial")
     if args.archive and (archive.exists() or temporary.exists()):
         raise FileExistsError(
