@@ -1,0 +1,11 @@
+# Local model development after the integration checkpoint
+
+The stable integration candidate and private 0.3.1 runtime remain preserved. This branch changes only development tools and synthetic tests; production model selection, rules and contracts are unchanged.
+
+Hypothesis: optional empty-event output suppresses assessment, while oversized repeated frame-ID schemas consume context and an overly broad possible-action screen overloads verification. Test a compact per-rule screen followed by an explicit assessment of every proposed candidate, including negative findings. Final applicability, full-context, exclusions and all-predicate gates remain unchanged.
+
+Plan fixed before new private measurements: use the same first four development unique videos as previous engineering probes; never open validation for selection. Compare compact NF4 2B using ordered images versus the same model/configuration using native video. Original source PTS determines temporal patch timestamps and evidence; no assumed fixed frame rate. Before private native-video inference, pass static synthetic controls and reversed-sequence temporal controls. Use a pinned 4B native-video comparison only if the controls and measured memory/deadlines permit it. Four cases are exploratory, not an accuracy or generalization estimate; preserve technical failures and exact denominators.
+
+The native-input CPU integration confirms actual irregular PTS in processor tokens and restoration of the processor after the call. Synthetic tests confirm negative predicates, incomplete context and benign exclusions all reject an alert; invented indices fail after one repair. The full suite passed 30 tests before the final compact object-schema refinement; the seven new experimental tests then passed again in 6.52 s. No private frames/captions are exposed to coding tools. Later results go here only as aggregate numbers.
+
+Do not replace the released model/package merely because JSON becomes valid or candidate counts increase. Any useful improvement requires a full development comparison, a frozen candidate and a separate locked validation before a readiness claim. Human taxonomy/independent-view qualification remain absent.

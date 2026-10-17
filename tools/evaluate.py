@@ -16,6 +16,7 @@ from cashproof.config import force_offline
 from cashproof.inference.model import LocalQwen
 from cashproof.inference.pipeline import Pipeline
 from cashproof.rules import Registry
+from cashproof.errors import ProcessingError
 
 
 def ratio(a, b):
@@ -29,6 +30,8 @@ def main():
     p.add_argument("--rules", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--verify-grounding", action="store_true")
+    p.add_argument("--experimental-compact", action="store_true")
+    p.add_argument("--native-video", action="store_true")
     p.add_argument("--max-candidates", type=int, default=8)
     p.add_argument("--split", choices=["development", "validation"], required=True)
     p.add_argument(
@@ -47,6 +50,10 @@ def main():
         help="Required for validation: completed development aggregate with the exact frozen configuration",
     )
     a = p.parse_args()
+    if a.experimental_compact and not a.experimental_nf4:
+        raise ValueError("Compact experiment requires the isolated NF4 adapter")
+    if a.native_video and not a.experimental_compact:
+        raise ValueError("Native video requires the isolated compact experiment")
     if a.experimental_nf4 and a.split != "development":
         raise ValueError("Experimental adapter cannot open validation")
     if a.split == "validation" and not a.freeze_from:
@@ -82,7 +89,9 @@ def main():
     if a.experimental_nf4:
         from candidate_model import CandidateModel
 
-        model = CandidateModel(a.model_dir)
+        model = CandidateModel(
+            a.model_dir, compact=a.experimental_compact, native_video=a.native_video
+        )
     else:
         model = LocalQwen(a.model_dir)
     if a.verify_grounding:
@@ -94,10 +103,26 @@ def main():
             raise RuntimeError(
                 "Synthetic visual grounding failed before private evaluation"
             )
+        if a.native_video:
+            from temporal_grounding import verify as verify_temporal
+
+            if not verify_temporal(model, a.output / "synthetic-temporal-grounding")[
+                "passed"
+            ]:
+                raise RuntimeError(
+                    "Synthetic temporal grounding failed before private evaluation"
+                )
+    if hasattr(model, "technical_calls"):
+        model.technical_calls.clear()
     registry = Registry(a.rules)
     if not 1 <= a.max_candidates <= 32:
         raise ValueError("Candidate budget must be between 1 and 32")
-    pipeline = Pipeline(model, registry, a.max_candidates)
+    if a.experimental_compact:
+        from compact_pipeline import CompactPipeline
+
+        pipeline = CompactPipeline(model, registry, a.max_candidates)
+    else:
+        pipeline = Pipeline(model, registry, a.max_candidates)
     if a.freeze_from:
         frozen = json.loads(a.freeze_from.read_text(encoding="utf-8"))
         if frozen.get("partial_evaluation") or frozen.get("split") != "development":
@@ -124,6 +149,7 @@ def main():
     if a.max_videos:
         selected = selected[: a.max_videos]
     selected_hashes = {rs[0]["sha256"] for rs in selected}
+    model.torch.cuda.reset_peak_memory_stats()
     for digest, rs in by_hash.items():
         if digest not in selected_hashes:
             continue
@@ -140,6 +166,11 @@ def main():
                 lambda **kwargs: None,
             )
             elapsed = time.time() - start
+            if elapsed > 270:
+                raise ProcessingError(
+                    "DEADLINE_EXCEEDED",
+                    "Development result exceeded production watchdog budget",
+                )
             latencies.append(elapsed)
             (directory / "result.json").write_text(
                 json.dumps(result, ensure_ascii=False), encoding="utf-8"
@@ -235,10 +266,29 @@ def main():
             "max": max(latencies) if latencies else None,
         },
         "type_accuracy": None,
+        "peak_vram_bytes": model.torch.cuda.max_memory_allocated(),
         "event_f1": None,
         "note": "Video labels provide neither event-type ground truth nor full event intervals. No generalization claim.",
     }
     (out / "aggregate.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    if hasattr(pipeline, "stage_counts"):
+        metrics["stage_counts"] = pipeline.stage_counts
+    if hasattr(model, "technical_calls"):
+        calls = model.technical_calls
+        (out / "technical-calls.json").write_text(
+            json.dumps(calls, indent=2), encoding="utf-8"
+        )
+        metrics["inference_calls"] = len(calls)
+        metrics["input_token_max"] = max(
+            (c.get("input_tokens", 0) for c in calls), default=0
+        )
+        metrics["input_budget_failures"] = sum(
+            c.get("input_budget_exceeded", False) for c in calls
+        )
+        metrics["native_video_calls"] = sum(c["native_video"] for c in calls)
+        (out / "aggregate.json").write_text(
+            json.dumps(metrics, indent=2), encoding="utf-8"
+        )
     summary = {key: value for key, value in metrics.items() if key != "configuration"}
     summary["configuration_sha256"] = pipeline.configuration["configuration_sha256"]
     print(json.dumps(summary))

@@ -10,7 +10,12 @@ from cashproof.errors import ProcessingError
 
 
 class CandidateModel:
-    def __init__(self, model_dir):
+    def __init__(self, model_dir, compact=False, native_video=False):
+        if native_video and not compact:
+            raise ValueError("Native video requires the explicit compact experiment")
+        self.native_video = native_video
+        self.compact = compact
+        self.technical_calls = []
         force_offline()
         import torch
         from transformers import (
@@ -90,6 +95,32 @@ class CandidateModel:
             "max_input_tokens": 4608,
             "screening_mode": "assessments",
         }
+        if compact:
+            self.runtime_configuration.update(
+                {
+                    "image_max_edge": 672,
+                    "screening_max_pixels": 65536,
+                    "verification_max_pixels": 131072,
+                    "screening_window_sec": 14,
+                    "screening_overlap_sec": 2,
+                    "verification_dense_radius_sec": 2,
+                    "max_images_per_call": 16,
+                    "max_input_tokens": 6144,
+                    "screening_mode": "compact explicit assessment",
+                    "screening_max_new_tokens": 384,
+                    "verification_max_new_tokens": 512,
+                    "visual_input": "native video with original PTS"
+                    if native_video
+                    else "ordered images",
+                }
+            )
+            self.manifest["experimental_recipe"].update(self.runtime_configuration)
+            if native_video:
+                self.manifest["experimental_recipe"]["native_frames_sha256"] = (
+                    hashlib.sha256(
+                        Path(__file__).with_name("native_frames.py").read_bytes()
+                    ).hexdigest()
+                )
         self.torch = torch
         self.processor = AutoProcessor.from_pretrained(
             str(model_dir), local_files_only=True, trust_remote_code=False
@@ -115,7 +146,7 @@ class CandidateModel:
         ).eval()
 
     def infer(self, frames, instruction, deadline, output_schema=None):
-        if len(frames) > 9:
+        if len(frames) > self.runtime_configuration["max_images_per_call"]:
             raise ProcessingError("RESOURCE_EXHAUSTED", "Image budget exceeded")
         from lmformatenforcer import JsonSchemaParser, CharacterLevelParserConfig
         from lmformatenforcer.integrations.transformers import (
@@ -124,20 +155,32 @@ class CandidateModel:
 
         content = []
         images = []
+        started = time.perf_counter()
+        native = self.native_video and len(frames) > 1
+        verify = "Candidate=" in instruction
+        telemetry = {
+            "frames": len(frames),
+            "native_video": native,
+            "verification": verify,
+        }
         try:
             for frame in frames:
-                content.extend(
-                    [
-                        {
-                            "type": "text",
-                            "text": f"Frame {frame['id']} at {frame['timestamp_sec']:.6f} seconds",
-                        },
-                        {"type": "image"},
-                    ]
-                )
+                if not native:
+                    content.extend(
+                        [
+                            {
+                                "type": "text",
+                                "text": f"Frame {frame['id']} at {frame['timestamp_sec']:.6f} seconds",
+                            },
+                            {"type": "image"},
+                        ]
+                    )
                 image = Image.open(frame["path"]).convert("RGB")
-                image.thumbnail((848, 848))
+                edge = self.runtime_configuration["image_max_edge"]
+                image.thumbnail((edge, edge))
                 images.append(image)
+            if native:
+                content.append({"type": "video"})
             content.append({"type": "text", "text": instruction})
             messages = [
                 {
@@ -149,17 +192,33 @@ class CandidateModel:
             text = self.processor.apply_chat_template(
                 messages, tokenize=False, add_generation_prompt=True
             )
-            inputs = self.processor(
-                text=[text],
-                images=images,
-                return_tensors="pt",
-                padding=True,
-                images_kwargs={
-                    "min_pixels": 1024,
-                    "max_pixels": 262144 if "Candidate=" in instruction else 131072,
-                },
-            ).to("cuda:0")
-            if inputs["input_ids"].shape[-1] > 4608:
+            pixels = self.runtime_configuration[
+                "verification_max_pixels" if verify else "screening_max_pixels"
+            ]
+            if native:
+                from native_frames import native_inputs
+
+                inputs = native_inputs(
+                    self.processor, frames, images, text, self.torch, pixels
+                )
+            else:
+                inputs = self.processor(
+                    text=[text],
+                    images=images,
+                    return_tensors="pt",
+                    padding=True,
+                    images_kwargs={
+                        "min_pixels": 1024,
+                        "max_pixels": pixels,
+                    },
+                )
+            inputs = inputs.to("cuda:0")
+            telemetry["input_tokens"] = int(inputs["input_ids"].shape[-1])
+            if (
+                telemetry["input_tokens"]
+                > self.runtime_configuration["max_input_tokens"]
+            ):
+                telemetry["input_budget_exceeded"] = True
                 raise ProcessingError(
                     "RESOURCE_EXHAUSTED", "Input token budget exceeded"
                 )
@@ -186,14 +245,21 @@ class CandidateModel:
                     temperature=None,
                     top_p=None,
                     top_k=None,
-                    max_new_tokens=1024 if "Candidate=" in instruction else 768,
+                    max_new_tokens=(512 if verify else 384)
+                    if self.compact
+                    else (1024 if verify else 768),
                     max_time=remaining,
                     use_cache=True,
                     **kwargs,
                 )
+            telemetry["output_tokens"] = int(
+                generated.shape[-1] - inputs["input_ids"].shape[-1]
+            )
             return self.processor.batch_decode(
                 generated[:, inputs["input_ids"].shape[-1] :], skip_special_tokens=True
             )[0]
         finally:
+            telemetry["elapsed_sec"] = time.perf_counter() - started
+            self.technical_calls.append(telemetry)
             for image in images:
                 image.close()
