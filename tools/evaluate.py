@@ -165,14 +165,15 @@ def main():
         model = LocalQwen(a.model_dir)
     if a.verify_grounding:
         if experimental:
-            from grammar_controls import verify as verify_grammar
-
             grammar_check = getattr(model, "verify_grammar", None)
-            grammar_result = (
-                grammar_check(a.output / "synthetic-grammar-controls")
-                if grammar_check
-                else verify_grammar(model, a.output / "synthetic-grammar-controls")
-            )
+            if grammar_check:
+                grammar_result = grammar_check(a.output / "synthetic-grammar-controls")
+            else:
+                from grammar_controls import verify as verify_grammar
+
+                grammar_result = verify_grammar(
+                    model, a.output / "synthetic-grammar-controls"
+                )
             if not grammar_result["passed"]:
                 raise RuntimeError("Boolean grammar failed before private evaluation")
         from visual_grounding import verify

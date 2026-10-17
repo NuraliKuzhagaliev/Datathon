@@ -92,7 +92,11 @@ class GGUFModel:
         screen_pixels=131072,
         cache_prompt=True,
         conversion_receipt=None,
+        image_max_tokens=256,
+        context_size=6144,
     ):
+        if image_max_tokens not in {256, 512} or context_size not in {6144, 12288}:
+            raise ValueError("Unqualified experimental visual/context budget")
         self.process = None
         self.client = None
         self.technical_calls = []
@@ -147,7 +151,7 @@ class GGUFModel:
             "screening_overlap_sec": 2,
             "verification_dense_radius_sec": 2,
             "max_images_per_call": 16,
-            "max_input_tokens": 6144,
+            "max_input_tokens": context_size,
             "screening_mode": "local GGUF fact screening",
             "screening_max_new_tokens": 384,
             "verification_max_new_tokens": 1024,
@@ -161,7 +165,7 @@ class GGUFModel:
             "runtime_release": "llama.cpp b11715 CUDA 12.4",
             "runtime_receipt_sha256": RECEIPT_SHA256,
             "adapter_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-            "image_max_tokens": 256,
+            "image_max_tokens": image_max_tokens,
             "cache_prompt": cache_prompt,
             "prompt_cache_ram_mib": 256,
             "context_shift": False,
@@ -198,7 +202,7 @@ class GGUFModel:
             "--port",
             str(port),
             "--ctx-size",
-            "6144",
+            str(context_size),
             "--parallel",
             "1",
             "--gpu-layers",
@@ -218,7 +222,7 @@ class GGUFModel:
             "--image-min-tokens",
             "4",
             "--image-max-tokens",
-            "256",
+            str(image_max_tokens),
             "--no-context-shift",
             "--no-webui",
             "--log-verbosity",
