@@ -13,7 +13,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
     def __init__(self, model, registry, max_candidates=8):
         super().__init__(model, registry, max_candidates)
         model.runtime_configuration.update(
-            experimental_verifier="occurrence-specific independent checks v7; ungrounded opposite cannot clear exclusion; local indices and dense onset refinement",
+            experimental_verifier="occurrence-specific independent checks v8; grammar requires exclusion witnesses; local indices and dense onset refinement",
             atomic_verifier_sha256=hashlib.sha256(
                 Path(__file__).read_bytes()
             ).hexdigest(),
@@ -29,7 +29,6 @@ class AtomicFactPipeline(TriggerFactPipeline):
             atomic_unobservable_checks=0,
             joint_conditions_rejected=0,
             atomic_exclusion_checks=0,
-            ungrounded_exclusions_marked_unobservable=0,
         )
         self.uncertainty_spans = []
 
@@ -69,6 +68,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
                 "first_supported_index": {"anyOf": [index, {"type": "null"}]},
                 "evidence_indices": {
                     "type": "array",
+                    "minItems": 1 if require_counterevidence else 0,
                     "maxItems": 3,
                     "uniqueItems": True,
                     "items": index,
@@ -95,6 +95,11 @@ class AtomicFactPipeline(TriggerFactPipeline):
             "For contradicted/unobservable use null for first_supported_index. "
             "For supported AND contradicted provide actual evidence_indices. An opposite claim without observable evidence is unobservable. "
             + (
+                "For this exclusion choose at least one actual source frame showing the support, the opposite, or the visibility limitation. Unobservable remains available and rejects the event. "
+                if require_counterevidence
+                else ""
+            )
+            + (
                 "Proposed occurrence="
                 + json.dumps(focus, separators=(",", ":"))
                 + ". Assess THIS occurrence. This is an approximate sampled hint, not an exact onset or evidence. "
@@ -111,15 +116,6 @@ class AtomicFactPipeline(TriggerFactPipeline):
         )
 
         def parse(value):
-            if (
-                require_counterevidence
-                and value["support"] == "contradicted"
-                and not value["evidence_indices"]
-            ):
-                # A missing source witness cannot clear an exception. This is
-                # uncertain semantics, not a decoder/JSON failure or proof of absence.
-                self.stage_counts["ungrounded_exclusions_marked_unobservable"] += 1
-                value = dict(value, support="unobservable", first_supported_index=None)
             if value["support"] == "supported" and (
                 value["first_supported_index"] is None
                 or value["first_supported_index"] not in value["evidence_indices"]
