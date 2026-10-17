@@ -36,6 +36,7 @@ def main():
     p.add_argument("--experimental-trigger-screen", action="store_true")
     p.add_argument("--experimental-atomic-verifier", action="store_true")
     p.add_argument("--experimental-joint-screen", action="store_true")
+    p.add_argument("--experimental-screen-fps", type=int, choices=[1, 2, 4], default=1)
     p.add_argument(
         "--experimental-screen-views", choices=["full", "paired"], default="full"
     )
@@ -100,6 +101,10 @@ def main():
         raise ValueError(
             "Paired temporal views failed direction controls; unavailable for private evaluation"
         )
+    if a.experimental_screen_fps != 1 and not a.experimental_joint_screen:
+        raise ValueError(
+            "Density comparison requires the bounded joint-screen experiment"
+        )
     if (
         a.experimental_precision != "nf4" or a.experimental_screen_pixels != 65536
     ) and not a.experimental_fact_screen:
@@ -149,7 +154,7 @@ def main():
         from gguf_model import GGUFModel
 
         def make_gguf(private_dir):
-            return GGUFModel(
+            instance = GGUFModel(
                 a.model_dir,
                 a.experimental_gguf_runtime,
                 a.gguf_provision_receipt,
@@ -157,8 +162,15 @@ def main():
                 screen_pixels=a.experimental_screen_pixels,
                 conversion_receipt=a.gguf_conversion_receipt,
                 image_max_tokens=512 if a.experimental_joint_screen else 256,
-                context_size=8192 if a.experimental_joint_screen else 6144,
+                context_size=(12288 if a.experimental_screen_fps > 1 else 8192)
+                if a.experimental_joint_screen
+                else 6144,
             )
+            if a.experimental_joint_screen:
+                instance.runtime_configuration["screening_sample_fps"] = (
+                    a.experimental_screen_fps
+                )
+            return instance
 
         model = make_gguf(a.output / "private-runtime")
     elif experimental:
@@ -272,7 +284,10 @@ def main():
             from source_time_controls import verify as verify_source_time
 
             if not verify_source_time(
-                model, a.output / "synthetic-source-time", type(pipeline)
+                model,
+                a.output / "synthetic-source-time",
+                type(pipeline),
+                extended=a.experimental_joint_screen,
             )["passed"]:
                 raise RuntimeError(
                     "Generated end-to-end source-time control failed before private evaluation"
@@ -479,7 +494,12 @@ def main():
     summary = {key: value for key, value in metrics.items() if key != "configuration"}
     summary["configuration_sha256"] = pipeline.configuration["configuration_sha256"]
     print(json.dumps(summary))
-    if a.experimental_gguf_runtime and a.verify_grounding and not model.closed:
+    if (
+        a.experimental_gguf_runtime
+        and a.verify_grounding
+        and not model.closed
+        and not a.experimental_joint_screen
+    ):
         # Additional synthetic stress cases are measured after the frozen real
         # cohort, so they cannot be used to tune this cohort's predictions.
         model.technical_calls.clear()

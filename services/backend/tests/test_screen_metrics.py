@@ -77,3 +77,33 @@ def test_joint_crop_views_use_real_source_times_and_do_not_duplicate_one_instant
     (private / "generated.json").write_text(json.dumps(record))
     times, invalid, _ = proposals(tmp_path)
     assert times == [1.2] and invalid == 0
+
+
+def test_compact_states_preserve_only_observed_source_proposal(tmp_path):
+    private = tmp_path / "private-inference"
+    private.mkdir()
+    record = {
+        "prompt": 'Source indices=[{"index":0,"source_seconds":2.7}]',
+        "output": json.dumps(
+            {
+                "checks": {
+                    "TEST-A": {
+                        "state": "observed",
+                        "visible_change": "PRIVATE_CAPTION",
+                        "events": [
+                            {
+                                "onset_index": 0,
+                                "last_active_index": 0,
+                                "continues_from_window_start": False,
+                            }
+                        ],
+                        "overflow": False,
+                    },
+                    "TEST-B": {"state": "absent"},
+                    "TEST-C": {"state": "unclear"},
+                }
+            }
+        ),
+    }
+    (private / "generated.json").write_text(json.dumps(record))
+    assert proposals(tmp_path) == ([2.7], 0, [])

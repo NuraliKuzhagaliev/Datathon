@@ -334,7 +334,9 @@ class Pipeline:
         coarse = media.extract(
             source,
             timeline,
-            media.sample_indices(timeline),
+            media.sample_indices(
+                timeline, fps=self.configuration["screening_sample_fps"]
+            ),
             directory / "coarse",
             deadline,
         )

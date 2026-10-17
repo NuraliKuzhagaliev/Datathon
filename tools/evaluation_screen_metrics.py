@@ -31,7 +31,7 @@ def proposals(case):
         if not isinstance(answer, dict):
             continue
         joint = isinstance(answer.get("checks"), dict) and all(
-            isinstance(row, dict) and "events" in row
+            isinstance(row, dict) and ("events" in row or "state" in row)
             for row in answer["checks"].values()
         )
         if joint:
@@ -40,14 +40,15 @@ def proposals(case):
                     record["prompt"].split("Source indices=", 1)[1]
                 )[0]
                 if any(
-                    row.get("overflow") is not False
+                    row.get("overflow", False) is not False
+                    or row.get("state") not in {None, "observed", "absent", "unclear"}
                     for row in answer["checks"].values()
                 ):
                     raise ValueError()
                 selected = [
                     event["onset_index"]
                     for row in answer["checks"].values()
-                    for event in row["events"]
+                    for event in row.get("events", [])
                 ]
                 if any(
                     type(i) is not int or not 0 <= i < len(legend) for i in selected

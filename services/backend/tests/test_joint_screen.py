@@ -16,16 +16,18 @@ class Responses:
     def infer(self, frames, instruction, deadline, output_schema=None):
         checks = {
             key: {
-                "visible_change": "Generated test action",
-                "observed": False,
-                "events": [],
-                "unclear": False,
-                "overflow": False,
+                "state": "absent",
             }
             for key in output_schema["properties"]["checks"]["required"]
         }
-        checks["TEST-A"]["events"] = self.events.pop(0)
-        checks["TEST-A"]["observed"] = bool(checks["TEST-A"]["events"])
+        events = self.events.pop(0)
+        if events:
+            checks["TEST-A"] = {
+                "state": "observed",
+                "visible_change": "Generated test action",
+                "events": events,
+                "overflow": False,
+            }
         return json.dumps(
             {
                 "visible_sequence": "Generated sequence",
@@ -118,3 +120,34 @@ def test_auxiliary_crop_onset_maps_back_to_original_source_frame(registry, tmp_p
     output = pipeline.ask(source, None, time.time() + 60, tmp_path / "private")
     assert output.events[0].event_frame_id == "original-0"
     assert output.events[0].frame_ids == ["original-0"]
+
+
+def test_compact_unclear_answer_preserves_limited_coverage(registry, tmp_path):
+    class Unclear(Responses):
+        def infer(self, *args, **kwargs):
+            value = json.loads(super().infer(*args, **kwargs))
+            value["checks"]["TEST-A"] = {"state": "unclear"}
+            return json.dumps(value)
+
+    pipeline = JointScreenPipeline(Unclear([[]]), registry)
+    output = pipeline.ask(frames(0), None, time.time() + 60, tmp_path / "private")
+    assert not output.events
+    assert output.visibility_limited
+
+
+def test_observed_state_without_source_occurrence_cannot_be_valid(registry, tmp_path):
+    class Unsupported(Responses):
+        def infer(self, *args, **kwargs):
+            value = json.loads(super().infer(*args, **kwargs))
+            value["checks"]["TEST-A"] = {
+                "state": "observed",
+                "visible_change": "Unlinked test",
+                "events": [],
+                "overflow": False,
+            }
+            return json.dumps(value)
+
+    pipeline = JointScreenPipeline(Unsupported([[], []]), registry)
+    with pytest.raises(ProcessingError) as failure:
+        pipeline.ask(frames(0), None, time.time() + 60, tmp_path / "private")
+    assert failure.value.code == "MODEL_OUTPUT_INVALID"

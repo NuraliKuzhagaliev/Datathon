@@ -14,11 +14,14 @@ from cashproof.reproducibility import configuration
 class JointScreenPipeline(AtomicFactPipeline):
     def __init__(self, model, registry, max_candidates=32, use_motion_views=False):
         super().__init__(model, registry, max_candidates)
+        fps = model.runtime_configuration.get("screening_sample_fps", 1)
+        if fps not in {1, 2, 4}:
+            raise ValueError("Unqualified screening density")
         model.runtime_configuration.update(
-            experimental_screening="short joint visible-action screen v2; explicit exact-question decision and visual-context continuation merging",
+            experimental_screening="short joint visible-action screen v3; compact exact-action states and measured source sampling",
             joint_screen_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-            screening_window_sec=7,
-            screening_overlap_sec=1,
+            screening_window_sec=3.5 if fps == 4 else 7,
+            screening_overlap_sec=0.5 if fps == 4 else 1,
             screening_max_pixels=131072 if use_motion_views else 393472,
             verification_max_pixels=393472,
             screening_max_new_tokens=1024,
@@ -67,17 +70,29 @@ class JointScreenPipeline(AtomicFactPipeline):
                 "continues_from_window_start",
             ],
         }
-        assessment = {
+        observed_assessment = {
             "type": "object",
             "additionalProperties": False,
             "properties": {
+                "state": {"type": "string", "enum": ["observed"]},
                 "visible_change": {"type": "string", "maxLength": 100},
-                "observed": {"type": "boolean"},
                 "events": {"type": "array", "maxItems": 3, "items": event},
-                "unclear": {"type": "boolean"},
                 "overflow": {"type": "boolean"},
             },
-            "required": ["visible_change", "observed", "events", "unclear", "overflow"],
+            "required": ["state", "visible_change", "events", "overflow"],
+        }
+        assessment = {
+            "anyOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "state": {"type": "string", "enum": ["absent", "unclear"]}
+                    },
+                    "required": ["state"],
+                },
+                observed_assessment,
+            ]
         }
         schema = {
             "type": "object",
@@ -138,12 +153,13 @@ class JointScreenPipeline(AtomicFactPipeline):
         }
         prompt = (
             "Describe the directly visible sequence, then answer every short visual-action question independently. "
-            "For each question, observed=true ONLY when that EXACT action actually occurs, including its stated direction and object constraints. "
+            "For each question, state=observed ONLY when that EXACT action actually occurs, including its stated direction and object constraints. "
             "A different or opposite action does not satisfy the question, even if it is clearly visible. "
-            "If absent or unobservable, observed=false and events=[]; if unobservable also set unclear=true. "
+            'If absent return only {"state":"absent"} for that question. If unobservable return only {"state":"unclear"}. '
+            "Only observed answers contain visible_change, events and overflow. Return compact JSON without indentation. "
             "This is candidate screening, not a legal verdict. The question's visible action will be checked against legal conditions later. "
             "Do not require unseen accounting, permission, participant identity or all legal conditions at screening. "
-            "A still pose or hypothetical possibility is not an observed action. An empty events list means no visible action for that question. "
+            "A still pose or hypothetical possibility is not an observed action. An observed answer needs an actual source occurrence. "
             "For EACH distinct occurrence satisfying the exact question select its FIRST supportable local onset_index and last_active_index. "
             "Earlier context or preparatory motion is not yet support for the requested action. "
             "If an action is already visibly in progress in the FIRST image and continues, set continues_from_window_start=true and onset_index=0. "
@@ -171,6 +187,14 @@ class JointScreenPipeline(AtomicFactPipeline):
         )
 
         def parse(value):
+            for key, result in value["checks"].items():
+                value["checks"][key] = dict(
+                    result,
+                    observed=result["state"] == "observed",
+                    unclear=result["state"] == "unclear",
+                    events=result.get("events", []),
+                    overflow=result.get("overflow", False),
+                )
             for result in value["checks"].values():
                 if (
                     result["observed"] != bool(result["events"])
