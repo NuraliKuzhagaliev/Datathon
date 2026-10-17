@@ -33,6 +33,8 @@ def main():
     p.add_argument("--experimental-compact", action="store_true")
     p.add_argument("--native-video", action="store_true")
     p.add_argument("--experimental-fact-screen", action="store_true")
+    p.add_argument("--experimental-gguf-runtime", type=Path)
+    p.add_argument("--gguf-provision-receipt", type=Path)
     p.add_argument("--experimental-precision", choices=["nf4", "bf16"], default="nf4")
     p.add_argument(
         "--experimental-screen-pixels",
@@ -63,6 +65,12 @@ def main():
     a = p.parse_args()
     if a.experimental_fact_screen:
         a.experimental_compact = True
+    if a.experimental_gguf_runtime and (
+        not a.experimental_fact_screen or a.native_video or not a.gguf_provision_receipt
+    ):
+        raise ValueError(
+            "GGUF requires fact screening, ordered images and pinned receipt"
+        )
     if (
         a.experimental_precision != "nf4" or a.experimental_screen_pixels != 65536
     ) and not a.experimental_fact_screen:
@@ -108,7 +116,17 @@ def main():
     if any(len({r["label"] for r in rs}) > 1 for rs in by_hash.values()):
         raise ValueError("Conflicting binary labels")
     force_offline()
-    if experimental:
+    if a.experimental_gguf_runtime:
+        from gguf_model import GGUFModel
+
+        model = GGUFModel(
+            a.model_dir,
+            a.experimental_gguf_runtime,
+            a.gguf_provision_receipt,
+            a.output / "private-runtime",
+            screen_pixels=a.experimental_screen_pixels,
+        )
+    elif experimental:
         from candidate_model import CandidateModel
 
         model = CandidateModel(
@@ -130,9 +148,13 @@ def main():
         if experimental:
             from grammar_controls import verify as verify_grammar
 
-            if not verify_grammar(model, a.output / "synthetic-grammar-controls")[
-                "passed"
-            ]:
+            grammar_check = getattr(model, "verify_grammar", None)
+            grammar_result = (
+                grammar_check(a.output / "synthetic-grammar-controls")
+                if grammar_check
+                else verify_grammar(model, a.output / "synthetic-grammar-controls")
+            )
+            if not grammar_result["passed"]:
                 raise RuntimeError("Boolean grammar failed before private evaluation")
         from visual_grounding import verify
 
@@ -216,7 +238,9 @@ def main():
     if a.max_videos:
         selected = selected[: a.max_videos]
     selected_hashes = {rs[0]["sha256"] for rs in selected}
-    model.torch.cuda.reset_peak_memory_stats()
+    torch_backend = getattr(model, "torch", None)
+    if torch_backend is not None:
+        torch_backend.cuda.reset_peak_memory_stats()
     for digest, rs in by_hash.items():
         if digest not in selected_hashes:
             continue
@@ -265,12 +289,14 @@ def main():
         except Exception as error:
             failures += 1
             failure_latency.append(time.time() - start)
-            oom = isinstance(error, model.torch.OutOfMemoryError)
+            oom = torch_backend is not None and isinstance(
+                error, torch_backend.OutOfMemoryError
+            )
             code = getattr(
                 error, "code", "RESOURCE_EXHAUSTED" if oom else "PROCESSING_FAILED"
             )
             if oom:
-                model.torch.cuda.empty_cache()
+                torch_backend.cuda.empty_cache()
             failure_codes[code] += 1
             (directory / "failure.json").write_text(
                 json.dumps({"technical_failure": True, "error_code": code}),
@@ -333,7 +359,12 @@ def main():
             "max": max(latencies) if latencies else None,
         },
         "type_accuracy": None,
-        "peak_vram_bytes": model.torch.cuda.max_memory_allocated(),
+        "peak_vram_bytes": torch_backend.cuda.max_memory_allocated()
+        if torch_backend is not None
+        else None,
+        "vram_measurement": "PyTorch allocator"
+        if torch_backend is not None
+        else "Subprocess backend: peak not measured",
         "event_f1": None,
         "note": "Video labels provide neither event-type ground truth nor full event intervals. No generalization claim.",
     }
@@ -359,6 +390,8 @@ def main():
     summary = {key: value for key, value in metrics.items() if key != "configuration"}
     summary["configuration_sha256"] = pipeline.configuration["configuration_sha256"]
     print(json.dumps(summary))
+    if hasattr(model, "close"):
+        model.close()
 
 
 if __name__ == "__main__":
