@@ -20,13 +20,27 @@ class GeneratedGeometryOracle:
             with Image.open(frame["path"]) as image:
                 pixels = np.asarray(image.convert("RGB"))
             positions.append(float(np.where(pixels.max(axis=2) < 40)[1].mean()))
-        onset = next(
-            (
-                i
-                for i, x in enumerate(positions)
-                if x > 350 and any(v < 350 for v in positions[:i])
-            ),
-            None,
+        onsets = [
+            i
+            for i in range(1, len(positions))
+            if positions[i] > 350 and positions[i - 1] < 350
+        ]
+        focus = (
+            json.JSONDecoder().raw_decode(
+                instruction.split("Proposed occurrence=", 1)[1]
+            )[0]
+            if "Proposed occurrence=" in instruction
+            else None
+        )
+        onset = (
+            min(
+                onsets,
+                key=lambda i: abs(frames[i]["timestamp_sec"] - focus["source_seconds"]),
+            )
+            if onsets and focus
+            else onsets[0]
+            if onsets
+            else None
         )
         properties = output_schema["properties"]
         if "people_visible" in properties:
@@ -69,17 +83,30 @@ class GeneratedGeometryOracle:
             result = {
                 "visible_change": "Generated geometric movement",
                 "observed": onset is not None,
-                "indices": [] if onset is None else [onset],
+                "indices": onsets,
                 "visibility_limited": False,
                 "overflow": False,
             }
         return json.dumps(result)
 
 
-@pytest.mark.parametrize("pipeline_class", [TriggerFactPipeline, AtomicFactPipeline])
-def test_vfr_control_runs_all_the_way_to_exact_source_time(tmp_path, pipeline_class):
-    result = verify(GeneratedGeometryOracle(), tmp_path, pipeline_class)
+@pytest.mark.parametrize(
+    "pipeline_class,extended",
+    [
+        (TriggerFactPipeline, False),
+        (AtomicFactPipeline, False),
+        (AtomicFactPipeline, True),
+    ],
+)
+def test_vfr_control_runs_all_the_way_to_exact_source_time(
+    tmp_path, pipeline_class, extended
+):
+    result = verify(
+        GeneratedGeometryOracle(), tmp_path, pipeline_class, extended=extended
+    )
     assert result["passed"]
     assert result["cases"][0]["event_source_times_sec"] == [1.2]
     assert result["cases"][1]["event_source_times_sec"] == []
     assert result["cases"][0]["decoded_source_pts_sec"] == [0.0, 0.4, 1.2, 2.7]
+    if extended:
+        assert result["cases"][-1]["event_source_times_sec"] == [0.4, 3.4]

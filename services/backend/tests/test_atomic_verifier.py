@@ -9,25 +9,64 @@ from cashproof.inference.pipeline import ScreenCandidate
 
 class ScriptedChecks:
     def __init__(self, statuses):
-        self.responses = [
+        self.statuses = ["supported", "supported", "supported", "contradicted"]
+        self.statuses[: len(statuses)] = statuses
+
+    def infer(self, frames, instruction, deadline, output_schema=None):
+        if "support" not in output_schema["properties"]:
+            return json.dumps(
+                {
+                    "visible_change": "Generated event",
+                    "event_frame_index": 2,
+                    "evidence_indices": [2],
+                }
+            )
+        check = (
+            1
+            if "Statement=The visible activity fits this scope:" in instruction
+            else 2
+            if "Statement=The relevant boundaries and area" in instruction
+            else 3
+            if "Statement=At least ONE of these exclusions" in instruction
+            else 0
+        )
+        status = self.statuses[check]
+        return json.dumps(
             {
                 "visible_change": "Generated test evidence",
                 "support": status,
                 "first_supported_index": 2 if status == "supported" else None,
                 "evidence_indices": [2] if status == "supported" else [],
             }
-            for status in statuses
-        ]
-        self.responses.append(
-            {
-                "visible_change": "Generated event",
-                "event_frame_index": 2,
-                "evidence_indices": [2],
-            }
         )
 
-    def infer(self, frames, instruction, deadline, output_schema=None):
-        return json.dumps(self.responses.pop(0))
+
+def test_distinct_occurrences_are_distinguishable_to_every_visual_check(
+    registry, tmp_path
+):
+    prompts = []
+    frames = [{"id": f"f{i}", "timestamp_sec": t} for i, t in enumerate([0, 0.4, 2.7])]
+    for number, candidate_id in enumerate(["f0", "f2"]):
+
+        class RecordingChecks(ScriptedChecks):
+            def infer(self, frames, instruction, deadline, output_schema=None):
+                prompts[-1].append(instruction)
+                return super().infer(frames, instruction, deadline, output_schema)
+
+        model = RecordingChecks(["supported", "supported", "supported", "contradicted"])
+        prompts.append([])
+        candidate = ScreenCandidate(
+            rule_id="TEST-A",
+            event_frame_id=candidate_id,
+            frame_ids=[candidate_id],
+            predicates={"observed": True},
+            applicable=True,
+        )
+        AtomicFactPipeline(model, registry).ask(
+            frames, candidate, time.time() + 60, tmp_path / f"private-{number}"
+        )
+    assert len(prompts[0]) == len(prompts[1]) == 5
+    assert all(a != b for a, b in zip(prompts[0], prompts[1]))
 
 
 @pytest.mark.parametrize(

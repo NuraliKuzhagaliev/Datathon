@@ -13,7 +13,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
     def __init__(self, model, registry, max_candidates=8):
         super().__init__(model, registry, max_candidates)
         model.runtime_configuration.update(
-            experimental_verifier="independent supported/contradicted/unobservable checks v1",
+            experimental_verifier="occurrence-specific independent checks v2; short-circuit rejection without weakening any gate",
             atomic_verifier_sha256=hashlib.sha256(
                 Path(__file__).read_bytes()
             ).hexdigest(),
@@ -43,7 +43,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
                 )
         return detail, timeline
 
-    def check(self, frames, statement, deadline, private_dir):
+    def check(self, frames, statement, deadline, private_dir, focus=None):
         index = {"type": "integer", "enum": list(range(len(frames)))}
         schema = {
             "type": "object",
@@ -81,7 +81,14 @@ class AtomicFactPipeline(TriggerFactPipeline):
             "Read images in the supplied order. Do not identify individuals or infer intent, permission or ledger facts. "
             "For supported select its FIRST supportable source index and include it in evidence_indices. "
             "For contradicted/unobservable use null for first_supported_index. "
-            "Statement="
+            + (
+                "Proposed occurrence="
+                + json.dumps(focus, separators=(",", ":"))
+                + ". Assess THIS occurrence, not a different one. This is only a proposal, not evidence. "
+                if focus
+                else ""
+            )
+            + "Statement="
             + statement
             + "\nSource indices="
             + json.dumps(legend, separators=(",", ":"))
@@ -113,26 +120,33 @@ class AtomicFactPipeline(TriggerFactPipeline):
         if not verify:
             return super().ask(frames, verify, deadline, private_dir)
         rule = self.registry.enabled[verify.rule_id]
+        focus = self.candidate_focus(frames, verify)
         self.stage_counts["verification_assessments"] += 1
-        checks = {}
-        for key, statement in rule["predicates"].items():
-            checks[key] = self.check(frames, statement, deadline, private_dir)
-            self.stage_counts["atomic_predicate_checks"] += 1
-        if not all(v["support"] == "supported" for v in checks.values()):
-            self.stage_counts["missing_predicates"] += 1
-            return WindowOutput(
-                events=[],
-                visibility_limited=any(
-                    v["support"] == "unobservable" for v in checks.values()
-                ),
-            )
-
         applicability = self.check(
             frames,
             "The visible activity fits this scope: " + rule["public"]["applicability"],
             deadline,
             private_dir,
+            focus,
         )
+        if applicability["support"] != "supported":
+            return WindowOutput(
+                events=[], visibility_limited=applicability["support"] == "unobservable"
+            )
+        checks = {}
+        ordered_keys = sorted(
+            rule["predicates"], key=lambda key: key != "customer_absent"
+        )
+        for key in ordered_keys:
+            statement = rule["predicates"][key]
+            checks[key] = self.check(frames, statement, deadline, private_dir, focus)
+            self.stage_counts["atomic_predicate_checks"] += 1
+            if checks[key]["support"] != "supported":
+                self.stage_counts["missing_predicates"] += 1
+                return WindowOutput(
+                    events=[],
+                    visibility_limited=checks[key]["support"] == "unobservable",
+                )
         context = self.check(
             frames,
             "The relevant boundaries and area are sufficiently visible to establish this event: "
@@ -141,15 +155,21 @@ class AtomicFactPipeline(TriggerFactPipeline):
             + rule["context"],
             deadline,
             private_dir,
+            focus,
         )
+        self.stage_counts["incomplete_context"] += context["support"] != "supported"
+        if context["support"] != "supported":
+            return WindowOutput(
+                events=[], visibility_limited=context["support"] == "unobservable"
+            )
         exclusion = self.check(
             frames,
             "At least ONE of these exclusions actually applies to the proposed event: "
             + json.dumps(rule["public"]["exclusions"], ensure_ascii=False),
             deadline,
             private_dir,
+            focus,
         )
-        self.stage_counts["incomplete_context"] += context["support"] != "supported"
         self.stage_counts["exclusions_present"] += exclusion["support"] == "supported"
         # Unknown exclusions cannot silently become proof that no exclusion applies.
         eligible = (
@@ -187,6 +207,9 @@ class AtomicFactPipeline(TriggerFactPipeline):
             "Candidate="
             + verify.rule_id
             + ". Locate the FIRST supportable instant of the proposed event in these actual source frames. "
+            + "Proposed occurrence="
+            + json.dumps(focus, separators=(",", ":"))
+            + ". Locate THIS occurrence, not another earlier/later occurrence. The proposal is only a hint, not proof. "
             "Use the visible action instant, or the instant at which an omitted step first becomes established. "
             "Never select earlier context merely because it is the beginning of the video. "
             "The event must jointly satisfy all these visually checked conditions: "

@@ -11,19 +11,27 @@ from PIL import Image, ImageDraw
 from cashproof.rules import Registry
 
 
-def create(path, reverse=False):
+def create(
+    path,
+    reverse=False,
+    positions=(120, 230, 410, 560),
+    pts_ms=(0, 400, 1200, 2700),
+    line_x=350,
+):
     with av.open(str(path), "w", format="mov") as container:
         stream = container.add_stream("libx264", rate=25)
         stream.width, stream.height, stream.pix_fmt = 720, 400, "yuv420p"
         stream.time_base = Fraction(1, 1000)
         stream.codec_context.time_base = Fraction(1, 1000)
-        positions = [120, 230, 410, 560]
+        positions = list(positions)
+        if len(positions) != len(pts_ms):
+            raise ValueError("Generated position/PTS length mismatch")
         if reverse:
             positions.reverse()
-        for pts, x in zip([0, 400, 1200, 2700], positions):
+        for pts, x in zip(pts_ms, positions):
             with Image.new("RGB", (720, 400), "white") as image:
                 draw = ImageDraw.Draw(image)
-                draw.line((350, 20, 350, 380), fill="red", width=10)
+                draw.line((line_x, 20, line_x, 380), fill="red", width=10)
                 draw.ellipse((x - 20, 70, x + 20, 110), fill="black")
                 draw.line((x, 110, x, 240), fill="black", width=10)
                 draw.line((x - 40, 160, x, 130, x + 40, 160), fill="black", width=8)
@@ -37,7 +45,7 @@ def create(path, reverse=False):
     return path
 
 
-def verify(model, directory, pipeline_class):
+def verify(model, directory, pipeline_class, extended=False):
     directory.mkdir(parents=True, exist_ok=True)
     source = directory / "generated-source.txt"
     source.write_text("Generated geometry test only; no legal force.", encoding="utf-8")
@@ -56,7 +64,7 @@ def verify(model, directory, pipeline_class):
             "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
         },
         "predicates": {
-            "crossing": "A drawn black stick figure crosses the red vertical line from LEFT to RIGHT during this sequence; right-to-left does not satisfy it. The event instant is the FIRST source frame with the figure to the right of the line after previously being left of it."
+            "crossing": "A drawn black stick figure crosses the red vertical line from LEFT to RIGHT during this sequence; right-to-left does not satisfy it. For the proposed occurrence, the event instant is its FIRST source frame with the figure to the right of the line after previously being left of it. Separate crossings are distinct occurrences."
         },
         "context": "The figure is visible on both sides of the stationary red line before and after the movement. This generated geometric rule does not require any bank, cashier, customer or permission.",
         "snapshot": source.name,
@@ -69,27 +77,52 @@ def verify(model, directory, pipeline_class):
     )
     registry = Registry(registry_path)
     rows = []
-    for reverse in (False, True):
-        name = "reverse" if reverse else "forward"
-        video = create(directory / (name + ".mov"), reverse)
+    variants = [("forward", {}, [1.2]), ("reverse", {"reverse": True}, [])]
+    if extended:
+        variants.extend(
+            [
+                (
+                    "early",
+                    {"positions": (120, 410, 500, 560), "pts_ms": (0, 720, 1440, 3120)},
+                    [0.72],
+                ),
+                (
+                    "late",
+                    {
+                        "positions": (120, 200, 260, 560, 620),
+                        "pts_ms": (0, 320, 1040, 2720, 3640),
+                    },
+                    [2.72],
+                ),
+                ("no-cross", {"positions": (80, 130, 180, 220)}, []),
+                (
+                    "repeated",
+                    {
+                        "positions": (120, 410, 500, 120, 560, 620),
+                        "pts_ms": (0, 400, 1200, 2400, 3400, 4400),
+                    },
+                    [0.4, 3.4],
+                ),
+            ]
+        )
+    for number, (name, render_options, expected) in enumerate(variants):
+        video = create(directory / (name + ".mov"), **render_options)
         case = directory / (name + "-case")
         case.mkdir()
         started = time.monotonic()
         detail, timeline = pipeline_class(model, registry).run(
             video,
             case,
-            ("b" if reverse else "a") * 32,
+            format(number + 1, "032x"),
             time.time() + 180,
             lambda **kwargs: None,
         )
         result = detail["model_result"]
         times = [e["timecode_sec"] for e in result["violations"]]
         correct = (
-            result["verdict"] == "no_violation" and not times
-            if reverse
-            else result["verdict"] == "violation"
-            and len(times) == 1
-            and abs(times[0] - 1.2) < 0.04
+            result["verdict"] == ("violation" if expected else "no_violation")
+            and len(times) == len(expected)
+            and all(abs(a - b) < 0.04 for a, b in zip(times, expected))
         )
         rows.append(
             {
@@ -97,7 +130,8 @@ def verify(model, directory, pipeline_class):
                 "passed": correct,
                 "event_count": len(times),
                 "event_source_times_sec": times,
-                "expected_source_time_sec": None if reverse else 1.2,
+                "expected_source_time_sec": expected[0] if len(expected) == 1 else None,
+                "expected_source_times_sec": expected,
                 "decoded_source_pts_sec": timeline.pts,
                 "decoded_vfr": len(
                     {round(b - a, 6) for a, b in zip(timeline.pts, timeline.pts[1:])}

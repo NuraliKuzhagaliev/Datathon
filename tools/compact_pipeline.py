@@ -17,6 +17,19 @@ from cashproof.inference.pipeline import (
 
 
 class CompactPipeline(Pipeline):
+    @staticmethod
+    def candidate_focus(frames, candidate):
+        frame = next((f for f in frames if f["id"] == candidate.event_frame_id), None)
+        if frame is None:
+            raise ProcessingError(
+                "ANALYSIS_INCOMPLETE",
+                "Proposed source frame is absent from verification context",
+            )
+        return {
+            "source_frame_id": frame["id"],
+            "source_seconds": frame["timestamp_sec"],
+        }
+
     def __init__(self, model, registry, max_candidates=8, screen_wording="possible"):
         if screen_wording not in {"possible", "observed"}:
             raise ValueError("Unknown experimental screening wording")
@@ -204,7 +217,10 @@ class CompactPipeline(Pipeline):
         prompt = (
             "Candidate="
             + verify.rule_id
-            + ". Assess this proposed event even if it is absent. First describe the directly visible sequence; then truthfully assess EVERY predicate. A proposal is not evidence. A predicate is true only when visually supported. Check a benign explanation and every exclusion. complete_context requires the relevant boundaries/area; occlusion cannot prove an omission. Keep negative/counterevidence in the object; do not skip the assessment. Pick supplied frame indices, with the event index in evidence_indices. No identity, intent, permission or ledger inference.\nConditions="
+            + ". Proposed occurrence="
+            + json.dumps(self.candidate_focus(frames, verify), separators=(",", ":"))
+            + ". Assess THIS occurrence, not another earlier/later occurrence. The proposal is a hint, not proof. "
+            + "Assess this proposed event even if it is absent. First describe the directly visible sequence; then truthfully assess EVERY predicate. A proposal is not evidence. A predicate is true only when visually supported. Check a benign explanation and every exclusion. complete_context requires the relevant boundaries/area; occlusion cannot prove an omission. Keep negative/counterevidence in the object; do not skip the assessment. Pick supplied frame indices, with the event index in evidence_indices. No identity, intent, permission or ledger inference.\nConditions="
             + json.dumps(conditions, ensure_ascii=False, separators=(",", ":"))
             + "\nFrame indices="
             + json.dumps(legend, separators=(",", ":"))

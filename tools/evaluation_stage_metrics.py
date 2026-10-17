@@ -18,9 +18,29 @@ def score(run):
         rule["public"]["rule_id"]: set(rule["predicates"])
         for rule in public_registry["rules"]
     }
+    known_statements = {
+        rule["public"]["rule_id"]: rule["predicates"]
+        for rule in public_registry["rules"]
+    }
+    known_gate_statements = {
+        rule["public"]["rule_id"]: {
+            "applicability": "The visible activity fits this scope: "
+            + rule["public"]["applicability"],
+            "context": "The relevant boundaries and area are sufficiently visible to establish this event: "
+            + json.dumps(rule["predicates"], separators=(",", ":"))
+            + ". Context requirement: "
+            + rule["context"],
+            "exclusion": "At least ONE of these exclusions actually applies to the proposed event: "
+            + json.dumps(rule["public"]["exclusions"], ensure_ascii=False),
+        }
+        for rule in public_registry["rules"]
+    }
     scene = Counter()
     facts = defaultdict(Counter)
     verification = defaultdict(Counter)
+    atomic_support = Counter()
+    atomic_predicates = defaultdict(Counter)
+    atomic_gates = defaultdict(Counter)
     records = invalid = cases = 0
     for case in run.iterdir():
         if not case.is_dir() or not (case / "configuration.json").is_file():
@@ -37,6 +57,21 @@ def score(run):
                 invalid += 1
                 continue
             prompt = record["prompt"]
+            if value.get("support") in {"supported", "contradicted", "unobservable"}:
+                support = value["support"]
+                atomic_support[support] += 1
+                statement = prompt.split("Statement=", 1)[-1].split(
+                    "\nSource indices=", 1
+                )[0]
+                for rule_id, predicates in known_statements.items():
+                    for key, public_text in predicates.items():
+                        if statement == public_text:
+                            atomic_predicates[rule_id][key + ":" + support] += 1
+                for rule_id, gates in known_gate_statements.items():
+                    for key, public_text in gates.items():
+                        if statement == public_text:
+                            atomic_gates[rule_id][key + ":" + support] += 1
+                continue
             if "people_visible" in value:
                 scene["calls"] += 1
                 scene["people_visible"] += value["people_visible"] is True
@@ -89,6 +124,13 @@ def score(run):
         "scene_inventory": dict(scene),
         "fact_questions": {k: dict(v) for k, v in facts.items()},
         "verification_gates": {k: dict(v) for k, v in verification.items()},
+        "independent_checks": dict(atomic_support),
+        "independent_predicate_checks": {
+            k: dict(v) for k, v in atomic_predicates.items()
+        },
+        "independent_scope_context_exclusion": {
+            k: dict(v) for k, v in atomic_gates.items()
+        },
         "limits": "Aggregate model gate diagnostics, not independent ground truth. Raw semantics stay private.",
     }
 

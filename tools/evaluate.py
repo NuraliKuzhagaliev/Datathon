@@ -129,13 +129,16 @@ def main():
     if a.experimental_gguf_runtime:
         from gguf_model import GGUFModel
 
-        model = GGUFModel(
-            a.model_dir,
-            a.experimental_gguf_runtime,
-            a.gguf_provision_receipt,
-            a.output / "private-runtime",
-            screen_pixels=a.experimental_screen_pixels,
-        )
+        def make_gguf(private_dir):
+            return GGUFModel(
+                a.model_dir,
+                a.experimental_gguf_runtime,
+                a.gguf_provision_receipt,
+                private_dir,
+                screen_pixels=a.experimental_screen_pixels,
+            )
+
+        model = make_gguf(a.output / "private-runtime")
     elif experimental:
         from candidate_model import CandidateModel
 
@@ -262,6 +265,7 @@ def main():
     failure_codes = defaultdict(int)
     failure_types = defaultdict(int)
     failure_latency = []
+    runtime_restarts = 0
     evidence_frames = 0
     selected = [rs for rs in by_hash.values() if rs[0]["split"] == a.split]
     if a.max_videos:
@@ -278,6 +282,18 @@ def main():
         directory.mkdir()
         start = time.time()
         try:
+            if a.experimental_gguf_runtime and model.closed:
+                previous_model = model
+                runtime_restarts += 1
+                model = make_gguf(
+                    a.output / f"private-runtime-restart-{runtime_restarts}"
+                )
+                if model.manifest != previous_model.manifest:
+                    model.close()
+                    raise ValueError("Restarted experiment changed its pinned recipe")
+                model.runtime_configuration = dict(previous_model.runtime_configuration)
+                model.technical_calls = previous_model.technical_calls
+                pipeline.model = model
             result, timeline = pipeline.run(
                 Path(rs[0]["path"]),
                 directory,
@@ -368,6 +384,7 @@ def main():
         "failed": failures,
         "failure_codes": dict(failure_codes),
         "failure_types": dict(failure_types),
+        "runtime_restarts": runtime_restarts,
         "failure_latency_sec": failure_latency,
         "positive_unique_denominator": sum(int(rs[0]["label"]) for rs in selected),
         "negative_unique_denominator": sum(1 - int(rs[0]["label"]) for rs in selected),
@@ -427,6 +444,16 @@ def main():
     summary = {key: value for key, value in metrics.items() if key != "configuration"}
     summary["configuration_sha256"] = pipeline.configuration["configuration_sha256"]
     print(json.dumps(summary))
+    if a.experimental_gguf_runtime and a.verify_grounding and not model.closed:
+        # Additional synthetic stress cases are measured after the frozen real
+        # cohort, so they cannot be used to tune this cohort's predictions.
+        model.technical_calls.clear()
+        verify_source_time(
+            model,
+            a.output / "synthetic-source-time-stress",
+            type(pipeline),
+            extended=True,
+        )
     if hasattr(model, "close"):
         model.close()
 
