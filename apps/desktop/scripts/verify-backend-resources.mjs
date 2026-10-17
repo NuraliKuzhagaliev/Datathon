@@ -10,7 +10,7 @@ const sha256 = async file => {
 
 async function checkedPath(root, name, makeParents = false) {
   const parts = name.split('/');
-  if (parts.some(part => !part || part === '.' || part === '..' || /[\\:\0]/.test(part) || /[. ]$/.test(part))) throw new Error('Unsafe manifest resource path');
+  if (parts.some(part => !part || part === '.' || part === '..' || /[\\:\0]/.test(part) || /[. ]$/.test(part) || /^(con|prn|aux|nul|conin\$|conout\$|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part))) throw new Error('Unsafe manifest resource path');
   let current = root;
   for (const [index, part] of parts.entries()) {
     current = path.join(current, part);
@@ -52,5 +52,15 @@ export async function verifyBackendResources(source, destination) {
     }
     if (await sha256(target) !== expected) throw new Error('Packaged backend resource checksum mismatch');
   }
-  return { backend_files_verified: Object.keys(manifest.files).length, filtered_files_restored: restored, manifest_sha256: createHash('sha256').update(bytes).digest('hex') };
+  const expectedFiles = new Set([...Object.keys(manifest.files), 'manifest.json']);
+  async function rejectExtras(directory) {
+    for (const entry of await fs.promises.readdir(directory, { withFileTypes: true })) {
+      const file = path.join(directory, entry.name);
+      if (entry.isSymbolicLink()) throw new Error('Unexpected packaged backend symlink');
+      if (entry.isDirectory()) await rejectExtras(file);
+      else if (!entry.isFile() || !expectedFiles.has(path.relative(packaged, file).split(path.sep).join('/'))) throw new Error('Unlisted packaged backend file');
+    }
+  }
+  await rejectExtras(packaged);
+  return { backend_files_verified: Object.keys(manifest.files).length, filtered_files_restored: restored, unlisted_files_found: false, manifest_sha256: createHash('sha256').update(bytes).digest('hex') };
 }
