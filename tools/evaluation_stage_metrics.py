@@ -71,6 +71,16 @@ def score(run):
                     for key, public_text in gates.items():
                         if statement == public_text:
                             atomic_gates[rule_id][key + ":" + support] += 1
+                for rule in public_registry["rules"]:
+                    if any(
+                        statement
+                        == "This specific exclusion applies to the proposed occurrence: "
+                        + text
+                        for text in rule["public"]["exclusions"]
+                    ):
+                        atomic_gates[rule["public"]["rule_id"]][
+                            "individual_exclusion:" + support
+                        ] += 1
                 continue
             if "people_visible" in value:
                 scene["calls"] += 1

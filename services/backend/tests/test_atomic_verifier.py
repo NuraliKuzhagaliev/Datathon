@@ -29,7 +29,7 @@ class ScriptedChecks:
             else 2
             if "Statement=The relevant boundaries and area" in instruction
             else 3
-            if "Statement=At least ONE of these exclusions" in instruction
+            if "Statement=This specific exclusion applies" in instruction
             else 0
         )
         status = self.statuses[check]
@@ -169,3 +169,53 @@ def test_every_legal_gate_is_required_and_unknown_exclusion_never_passes(
         assert all(event.predicates.values())
     else:
         assert pipeline.stage_counts["eligible_assessments"] == 0
+
+
+@pytest.mark.parametrize("second_status", ["supported", "unobservable", "contradicted"])
+def test_each_exclusion_requires_its_own_counterevidence(
+    registry, tmp_path, second_status
+):
+    rule = registry.enabled["TEST-A"]
+    rule["public"]["exclusions"] = [
+        "First generated exception",
+        "Second generated exception",
+    ]
+    queries = []
+
+    class MultipleExclusions(ScriptedChecks):
+        def infer(self, frames, instruction, deadline, output_schema=None):
+            if "This specific exclusion applies" in instruction:
+                queries.append(instruction)
+                status = (
+                    second_status
+                    if "Second generated exception" in instruction
+                    else "contradicted"
+                )
+                return json.dumps(
+                    {
+                        "visible_change": "Generated counterevidence",
+                        "support": status,
+                        "first_supported_index": 2 if status == "supported" else None,
+                        "evidence_indices": [2] if status == "supported" else [],
+                    }
+                )
+            return super().infer(frames, instruction, deadline, output_schema)
+
+    pipeline = AtomicFactPipeline(MultipleExclusions([]), registry)
+    candidate = ScreenCandidate(
+        rule_id="TEST-A",
+        event_frame_id="f2",
+        frame_ids=["f2"],
+        predicates={"observed": True},
+        applicable=True,
+    )
+    output = pipeline.ask(
+        [{"id": f"f{i}", "timestamp_sec": float(i)} for i in range(3)],
+        candidate,
+        time.time() + 60,
+        tmp_path / "private",
+    )
+    assert len(queries) == 2 and queries[0] != queries[1]
+    assert pipeline.stage_counts["atomic_exclusion_checks"] == 2
+    assert bool(output.events) is (second_status == "contradicted")
+    assert output.visibility_limited is (second_status == "unobservable")

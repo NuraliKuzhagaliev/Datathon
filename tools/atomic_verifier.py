@@ -13,7 +13,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
     def __init__(self, model, registry, max_candidates=8):
         super().__init__(model, registry, max_candidates)
         model.runtime_configuration.update(
-            experimental_verifier="occurrence-specific independent checks v3; explicit joint support at final event time",
+            experimental_verifier="occurrence-specific independent checks v4; individually checked exclusions and joint event support",
             atomic_verifier_sha256=hashlib.sha256(
                 Path(__file__).read_bytes()
             ).hexdigest(),
@@ -28,6 +28,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
             atomic_predicate_checks=0,
             atomic_unobservable_checks=0,
             joint_conditions_rejected=0,
+            atomic_exclusion_checks=0,
         )
         self.uncertainty_spans = []
 
@@ -164,29 +165,27 @@ class AtomicFactPipeline(TriggerFactPipeline):
             return WindowOutput(
                 events=[], visibility_limited=context["support"] == "unobservable"
             )
-        exclusion = self.check(
-            frames,
-            "At least ONE of these exclusions actually applies to the proposed event: "
-            + json.dumps(rule["public"]["exclusions"], ensure_ascii=False),
-            deadline,
-            private_dir,
-            focus,
-        )
-        self.stage_counts["exclusions_present"] += exclusion["support"] == "supported"
-        # Unknown exclusions cannot silently become proof that no exclusion applies.
-        eligible = (
-            applicability["support"] == "supported"
-            and context["support"] == "supported"
-            and exclusion["support"] == "contradicted"
-        )
-        if not eligible:
-            return WindowOutput(
-                events=[],
-                visibility_limited=any(
-                    v["support"] == "unobservable"
-                    for v in (applicability, context, exclusion)
-                ),
+        # A disjunction of several exceptions invites an answer about the general
+        # action instead of each exception. Preserve the same gate, but establish
+        # the opposite of EACH listed exclusion independently.
+        for statement in rule["public"]["exclusions"]:
+            exclusion = self.check(
+                frames,
+                "This specific exclusion applies to the proposed occurrence: "
+                + statement,
+                deadline,
+                private_dir,
+                focus,
             )
+            self.stage_counts["atomic_exclusion_checks"] += 1
+            self.stage_counts["exclusions_present"] += (
+                exclusion["support"] == "supported"
+            )
+            if exclusion["support"] != "contradicted":
+                return WindowOutput(
+                    events=[],
+                    visibility_limited=exclusion["support"] == "unobservable",
+                )
 
         index = {"type": "integer", "enum": list(range(len(frames)))}
         schema = {
