@@ -1,9 +1,11 @@
 from pathlib import Path
+import hashlib
 import json
 import time
 from PIL import Image
 from ..config import force_offline
 from ..errors import ProcessingError
+from .. import __version__
 
 
 class LocalQwen:
@@ -19,10 +21,11 @@ class LocalQwen:
         )
         if (
             manifest["repo_id"] != "Qwen/Qwen3-VL-2B-Instruct"
-            or len(manifest["revision"]) != 40
+            or manifest["revision"] != "89644892e4d85e24eaac8bacfd4f463576704203"
         ):
             raise ValueError("A pinned official model is required")
-        # Provisioning verifies weights; runtime checks sizes and local-only loading.
+        # Verify exact bytes before loading. Hashes detect changes relative to
+        # the pinned manifest; they are not an authenticity claim about footage.
         for item in manifest["files"]:
             file = (model_dir / item["path"]).resolve()
             if (
@@ -30,7 +33,23 @@ class LocalQwen:
                 or file.stat().st_size != item["size"]
             ):
                 raise ValueError("Model manifest mismatch")
-        self.version = f"{manifest['repo_id']}@{manifest['revision']}"
+            digest = hashlib.sha256()
+            with file.open("rb") as stream:
+                for block in iter(lambda: stream.read(8 * 1024 * 1024), b""):
+                    digest.update(block)
+            if digest.hexdigest() != item["sha256"]:
+                raise ValueError("Model checksum mismatch")
+        weight = next(
+            item for item in manifest["files"] if item["path"] == "model.safetensors"
+        )
+        if (
+            weight["sha256"]
+            != "7de1838c87a5349b016c26a1c3f7d2bc400a3d485f95ef39a7059ffd734977a0"
+        ):
+            raise ValueError("Weight revision is not the qualified checkpoint")
+        self.version = (
+            f"{manifest['repo_id']}@{manifest['revision']};backend={__version__}"
+        )
         self.torch = torch
         self.processor = AutoProcessor.from_pretrained(
             str(model_dir), local_files_only=True, trust_remote_code=False
@@ -45,7 +64,10 @@ class LocalQwen:
         ).eval()
 
     def infer(self, frames, instruction, deadline):
-
+        if len(frames) > 16:
+            raise ProcessingError(
+                "RESOURCE_EXHAUSTED", "Per-call image budget exceeded"
+            )
         content, images = [], []
         for frame in frames:
             content.append(
@@ -70,7 +92,14 @@ class LocalQwen:
             messages, tokenize=False, add_generation_prompt=True
         )
         inputs = self.processor(
-            text=[text], images=images, return_tensors="pt", padding=True
+            text=[text],
+            images=images,
+            return_tensors="pt",
+            padding=True,
+            images_kwargs={
+                "min_pixels": 1024,
+                "max_pixels": 131072 if "Candidate=" in instruction else 65536,
+            },
         ).to("cuda:0")
         if inputs["input_ids"].shape[-1] > 14000:
             raise ProcessingError(
@@ -83,6 +112,9 @@ class LocalQwen:
             ids = self.model.generate(
                 **inputs,
                 do_sample=False,
+                temperature=None,
+                top_p=None,
+                top_k=None,
                 max_new_tokens=768,
                 max_time=remaining,
                 use_cache=True,

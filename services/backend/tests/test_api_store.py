@@ -130,6 +130,9 @@ def test_review_export_original_immutable(client, clip, registry):
     assert response.status_code == 200
     with ZipFile(BytesIO(response.content)) as z:
         manifest = json.loads(z.read("manifest.json"))
+        configuration = json.loads(z.read("configuration.json"))
+        assert configuration["max_candidates"] == 8
+        assert "inference/pipeline.py" in configuration["implementation_sha256"]
         assert any(n.startswith("sources/") for n in z.namelist())
         for name, digest in manifest["files"].items():
             assert hashlib.sha256(z.read(name)).hexdigest() == digest
@@ -176,3 +179,41 @@ def test_contract_fixtures():
             else "RuleRegistry"
         )
         validate(schema, json.loads(path.read_text(encoding="utf-8")))
+
+
+def test_worker_oom_is_a_technical_failure(client, clip, settings, monkeypatch):
+    from types import SimpleNamespace
+    from cashproof.inference import model as adapter
+    from cashproof.worker import worker_main
+
+    class OOMModel:
+        version = "synthetic-oom"
+        torch = SimpleNamespace(
+            OutOfMemoryError=MemoryError,
+            cuda=SimpleNamespace(
+                empty_cache=lambda: None,
+                reset_peak_memory_stats=lambda: None,
+                max_memory_allocated=lambda: 0,
+            ),
+        )
+
+        def __init__(self, path):
+            pass
+
+        def infer(self, *args):
+            raise MemoryError("Synthetic resource exhaustion")
+
+    class Channel:
+        def send(self, message):
+            if message[0] == "idle":
+                raise SystemExit()
+
+    monkeypatch.setattr(adapter, "LocalQwen", OOMModel)
+    job = upload(client, clip).json()["job_id"]
+    with pytest.raises(SystemExit):
+        worker_main(settings, Channel())
+    value = client.get(f"/api/v1/jobs/{job}", headers=OP).json()
+    assert (
+        value["status"] == "failed" and value["error"]["code"] == "RESOURCE_EXHAUSTED"
+    )
+    assert "verdict" not in value

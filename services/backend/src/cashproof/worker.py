@@ -5,6 +5,7 @@ import queue
 import subprocess
 import threading
 import time
+import sys
 from .config import Settings, force_offline
 from .errors import ProcessingError
 from .jobs import Store
@@ -24,7 +25,22 @@ def worker_main(settings: Settings, channel):
         model = LocalQwen(settings.model_dir)
         pipeline = Pipeline(model, registry, settings.max_candidates)
         channel.send(("ready", model.version, bool(registry.enabled)))
-    except Exception:
+    except Exception as error:
+        code = (
+            "MODEL_NOT_PROVISIONED"
+            if isinstance(error, FileNotFoundError)
+            else "MODEL_LOAD_FAILED"
+        )
+        sys.stderr.write(
+            json.dumps(
+                {
+                    "event": "worker_unavailable",
+                    "code": code,
+                    "exception_type": type(error).__name__,
+                }
+            )
+            + "\n"
+        )
         channel.send(("unavailable",))
         return
     while True:
@@ -35,6 +51,8 @@ def worker_main(settings: Settings, channel):
         job, created = claimed
         channel.send(("active", job, created))
         directory = store.directory(job)
+        model.torch.cuda.reset_peak_memory_stats()
+        started = time.time()
         try:
             detail, timeline = pipeline.run(
                 directory / "input.mov",
@@ -60,6 +78,19 @@ def worker_main(settings: Settings, channel):
             store.fail(job, "RESOURCE_EXHAUSTED" if is_oom else "PROCESSING_FAILED")
             if is_oom:
                 model.torch.cuda.empty_cache()
+        try:
+            (directory / "technical-metrics.json").write_text(
+                json.dumps(
+                    {
+                        "peak_vram_bytes": model.torch.cuda.max_memory_allocated(),
+                        "worker_sec": time.time() - started,
+                        "queue_wait_sec": started - created,
+                    }
+                ),
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
         channel.send(("idle",))
 
 
@@ -95,6 +126,9 @@ class Worker:
         self.lock.acquire(timeout=0)
         self.store = Store(self.settings.data_dir)
         self.store.recover()
+        for job in self.store.pending_previews():
+            if (self.store.directory(job) / "source-timeline.json").exists():
+                self.artifacts.put(job)
         self.thread = threading.Thread(target=self.supervise, daemon=True)
         self.preview_thread = threading.Thread(target=self.make_previews, daemon=True)
         self.thread.start()

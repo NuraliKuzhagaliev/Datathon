@@ -8,9 +8,11 @@ import subprocess
 import sys
 import threading
 import httpx
+import pytest
 
 
-def test_dynamic_port_and_actual_unready_model(tmp_path):
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_dynamic_port_and_actual_unready_model(tmp_path, interrupted):
     root = Path(__file__).resolve().parents[3]
     env = os.environ | {
         "PYTHONPATH": str(root / "services/backend/src"),
@@ -19,6 +21,14 @@ def test_dynamic_port_and_actual_unready_model(tmp_path):
         "CASHPROOF_MODEL_DIR": str(tmp_path / "absent-model"),
         "CASHPROOF_RULES": str(root / "assets/rules/registry.json"),
     }
+    interrupted_job = None
+    if interrupted:
+        from cashproof.jobs import Store, owner_id
+
+        store = Store(tmp_path / "persistent cases")
+        interrupted_job = store.reserve(
+            "synthetic.mov", owner_id(env["CASHPROOF_API_KEY"]), 1, "test", "test"
+        )
     process = subprocess.Popen(
         [
             sys.executable,
@@ -54,9 +64,23 @@ def test_dynamic_port_and_actual_unready_model(tmp_path):
             ready = client.get(base + "/health/ready")
             assert ready.status_code == 503 and ready.json()["ready"] is False
             assert client.get(base + "/api/ui/cases").status_code == 401
-            assert client.get(
+            cases = client.get(
                 base + "/api/ui/cases", headers={"X-API-Key": env["CASHPROOF_API_KEY"]}
-            ).json() == {"items": []}
+            ).json()
+            if interrupted_job:
+                assert (
+                    len(cases["items"]) == 1 and cases["items"][0]["status"] == "failed"
+                )
+                result = client.get(
+                    base + "/api/v1/jobs/" + interrupted_job,
+                    headers={"X-API-Key": env["CASHPROOF_API_KEY"]},
+                ).json()
+                assert (
+                    result["error"]["code"] == "WORKER_RESTARTED"
+                    and "verdict" not in result
+                )
+            else:
+                assert cases == {"items": []}
     finally:
         if os.name == "nt":
             subprocess.run(

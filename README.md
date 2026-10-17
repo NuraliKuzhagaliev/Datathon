@@ -2,7 +2,7 @@
 
 Local video review for possible cashier-procedure violations, with source-linked evidence and a separate human decision.
 
-**Status:** backend source and integration tests are implemented. GPU inference, model quality, web/desktop integration, portable offline release and public HTTPS must still pass the gates in [verification](docs/integration/verification.md). This checkout is not a completed competition submission.
+**Status:** real local GPU upload-to-result works; the longest supplied video completed in 173.01 seconds. Nineteen backend tests pass. Five queued four-second synthetic uploads completed in 4.36–10.94 seconds. Model accuracy, portable runtime qualification, web/desktop integration and public HTTPS remain gates in [verification](docs/integration/verification.md). This checkout is not a completed competition submission.
 
 ## Backend setup
 
@@ -17,7 +17,7 @@ $env:CASHPROOF_MODE='offline'
 .venv/Scripts/python.exe -m cashproof.bootstrap --host 127.0.0.1 --port 8000
 ```
 
-The setup script uses the pinned `services/backend/uv.lock` and CUDA 12.8 PyTorch index. Model provisioning pins the official Qwen checkpoint revision and verifies weight hashes. A missing model keeps `/health/ready` at 503; it never starts a download or returns a fixture prediction.
+The setup script requires `uv` on PATH (or `-Uv <path-to-uv.exe>`) and uses the pinned `services/backend/uv.lock` and CUDA 12.8 PyTorch index. Model provisioning pins the official Qwen checkpoint revision and verifies all asset hashes. A missing model keeps `/health/ready` at 503; it never starts a download or returns a fixture prediction.
 
 Run checks:
 
@@ -33,13 +33,13 @@ The unchanged [OpenAPI 1.0.0](packages/contracts/openapi.json) defines all field
 
 The Russian UI result wording is `Нарушение не обнаружено` / `Обнаружены признаки возможных нарушений`. A negative means no visible signs within enabled scope; it is not a compliance certificate. Each event has actual source PTS and 1–3 unannotated JPEGs. Human review never changes the original automated result.
 
-The backend includes a SQLite WAL queue, bounded admission, a supervised local model worker, full-video screening and temporal verification, validated source/preview timestamps, immutable case rule snapshots, review persistence and ZIP export. It initially admits one pending/active job; 429 includes `Retry-After`. Capacity and the 300-second competition deadline require real GPU measurements.
+The backend includes a SQLite WAL queue, bounded admission, a supervised local model worker, full-video screening and temporal verification, validated source/preview timestamps, immutable case rule snapshots, review persistence and ZIP export. It initially admits one pending/active job; 429 includes `Retry-After`. Five short synthetic jobs do not establish capacity for five long videos.
 
 ## Rules, privacy and evaluation
 
 Only Resolution No. 231 §22 is enabled as an experimental detector. Five other researched candidates are disabled pending local validation. See [legal sources and scope](docs/backend/legal-sources.md). The service does not identify people, infer intent or permissions, verify ledger entries, analyze audio or pronounce guilt.
 
-`private-data`, `runtime-data`, `models`, keys and releases are ignored by Git. Dataset filenames, hashes and labels are used for integrity, grouping and evaluation, never prediction. Local review of related takes is required before locking the provisional development/validation split. Both times on the duplicate positive video are preserved. Only aggregate evaluation output belongs in coding-agent conversations.
+`private-data`, `runtime-data`, `models`, keys and releases are ignored by Git. Dataset filenames, hashes and labels are used for integrity, grouping and evaluation, never prediction. The local reviewer returned a reviewed split of 28 development and 12 validation unique videos. Both times on the duplicate positive video are preserved. Only aggregate evaluation output belongs in coding-agent conversations.
 
 ## Team and release
 

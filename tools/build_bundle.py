@@ -9,8 +9,10 @@ import argparse
 import hashlib
 import json
 import os
+from importlib.metadata import distributions
 from pathlib import Path
 import shutil
+import subprocess
 from jsonschema import validate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -105,6 +107,8 @@ def main():
             for line in text.splitlines()
         ):
             file.unlink()
+    for file in (py / "Lib/site-packages").glob("*.dist-info/direct_url.json"):
+        file.unlink()  # Development installation locations are not runtime inputs.
     copytree(
         ROOT / "services/backend/src/cashproof",
         a.destination / "app/cashproof",
@@ -124,6 +128,45 @@ def main():
     (a.destination / "bin").mkdir()
     link_or_copy(a.ffmpeg, a.destination / "bin/ffmpeg.exe")
     link_or_copy(a.ffprobe, a.destination / "bin/ffprobe.exe")
+    notices = a.destination / "licenses"
+    notices.mkdir()
+    for name in ["LICENSE", "LICENSE.txt", "README.txt", "provenance.json"]:
+        source = a.ffmpeg.parent / name
+        if source.is_file():
+            link_or_copy(source, notices / ("ffmpeg-" + name))
+    if not (notices / "ffmpeg-provenance.json").is_file() or not any(
+        (notices / ("ffmpeg-" + name)).is_file() for name in ["LICENSE", "LICENSE.txt"]
+    ):
+        raise FileNotFoundError("FFmpeg provenance and license must accompany binaries")
+    inventory = []
+    for package in distributions(path=[str(a.site_packages)]):
+        license_text = package.metadata.get(
+            "License-Expression"
+        ) or package.metadata.get("License")
+        inventory.append(
+            {
+                "name": package.metadata["Name"],
+                "version": package.version,
+                "declared_license": license_text,
+                "bundled_license_files": [
+                    str(file)
+                    for file in package.files or []
+                    if "license" in str(file).lower() or "notice" in str(file).lower()
+                ],
+            }
+        )
+    (notices / "python-packages.json").write_text(
+        json.dumps(inventory, indent=2), encoding="utf-8"
+    )
+    (notices / "README.txt").write_text(
+        "Internal team release candidate. Python's license is python/LICENSE.txt; "
+        "third-party package notices remain in python/Lib/site-packages. "
+        "The Qwen model card is models/Qwen3-VL-2B-Instruct/README.md (Apache-2.0). "
+        "FFmpeg license, build details and source revision are included here. "
+        "A source revision link alone is not a complete corresponding-source distribution. "
+        "Review FFmpeg and bundled third-party redistribution obligations before public redistribution.\n",
+        encoding="utf-8",
+    )
     launch = dict(
         contract_version="1.0.0",
         executable="python/python.exe",
@@ -138,6 +181,8 @@ def main():
             "HF_HUB_OFFLINE": "1",
             "TRANSFORMERS_OFFLINE": "1",
             "HF_HUB_DISABLE_TELEMETRY": "1",
+            "DO_NOT_TRACK": "1",
+            "OTEL_SDK_DISABLED": "true",
         },
     )
     validate(
@@ -164,6 +209,10 @@ def main():
                 "model": manifest,
                 "files": files,
                 "offline_verified": False,
+                "public_redistribution_reviewed": False,
+                "source_commit": subprocess.check_output(
+                    ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+                ).strip(),
                 "note": "Assembly is not proof of a qualified offline launch.",
             },
             indent=2,

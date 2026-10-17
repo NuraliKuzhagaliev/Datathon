@@ -39,6 +39,15 @@ class ScriptedSyntheticModel:
                         limitations=[],
                     )
                 )
+                if "Candidate=" not in prompt:
+                    for key in [
+                        "complete_context",
+                        "exclusion_present",
+                        "observation",
+                        "counterevidence",
+                        "limitations",
+                    ]:
+                        events[-1].pop(key)
         return json.dumps(dict(events=events, visibility_limited=False))
 
 

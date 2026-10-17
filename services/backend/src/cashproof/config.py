@@ -61,3 +61,4 @@ def force_offline():
     ):
         os.environ[key] = "1"
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    os.environ["OTEL_SDK_DISABLED"] = "true"

@@ -1,6 +1,6 @@
 # Local runbook
 
-Python 3.11/3.12 is required. The current development interpreter is Python 3.12.14; the system Python 3.13 is outside the supported range. Dependencies and CUDA wheels must finish provisioning before local inference can start.
+Python 3.11/3.12 is required; 3.12.14 is qualified in development. System Python 3.13 is outside the supported range. Provision dependencies and CUDA wheels before offline inference. `uv` must be on PATH, or supply `-Uv <absolute-path-to-uv.exe>`; `-Python` also accepts a Python executable path.
 
 From the repository root in PowerShell:
 
@@ -36,7 +36,7 @@ No public hostname is provisioned by this source checkout. External HTTPS, organ
 .venv/Scripts/python.exe tools/prepare_dataset.py --dataset private-data/dataset --output private-data/evaluation-manifest.json
 ```
 
-A local human must review related-take groups, adjust the provisional 28/12 unique-video split and set `related_groups_reviewed=true` before evaluation. Exact duplicates must stay together; both positive duplicate times remain separate annotations. Do not expose local review notes to this coding chat. Once the split is locked:
+A local human must review related-take groups, adjust the provisional 28/12 unique-video split and set `related_groups_reviewed=true` before evaluation. For the supplied dataset this review was returned and checked: 28 development unique videos (15 positive/13 negative), 12 validation (6/6), 40 groups, no cross-split duplicates. Exact duplicates must stay together; both positive duplicate times remain separate annotations. Do not expose local review notes to this coding chat. Once the split is locked:
 
 ```powershell
 .venv/Scripts/python.exe tools/evaluate.py --manifest private-data/evaluation-manifest.json --model-dir models/Qwen3-VL-2B-Instruct --rules assets/rules/registry.json --output private-data/evaluation --split development

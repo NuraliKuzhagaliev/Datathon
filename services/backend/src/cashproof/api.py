@@ -61,7 +61,8 @@ def create_app(settings: Settings, worker=None):
     @app.middleware("http")
     async def access(request, call_next):
         reserved = None
-        if request.url.path.startswith("/api/"):
+        path = request.scope["path"]
+        if path.startswith("/api/"):
             key = request.headers.get("X-API-Key", "")
             is_operator = hmac.compare_digest(
                 key.encode(), settings.operator_key.encode()
@@ -73,9 +74,9 @@ def create_app(settings: Settings, worker=None):
                 return error("UNAUTHORIZED", "A valid X-API-Key is required.", 401)
             request.state.operator = is_operator
             request.state.owner = owner_id(key)
-            if request.url.path.startswith("/api/ui/") and not is_operator:
+            if path.startswith("/api/ui/") and not is_operator:
                 return error("UNAUTHORIZED", "An operator key is required.", 401)
-            if request.method == "POST" and request.url.path == "/api/v1/analyze":
+            if request.method == "POST" and path == "/api/v1/analyze":
                 if not worker.ready:
                     return error(
                         "WORKER_UNAVAILABLE", "Local worker/model is not ready.", 503
@@ -196,17 +197,7 @@ def create_app(settings: Settings, worker=None):
 
     @app.get("/api/ui/cases")
     def cases():
-        return {
-            "items": [
-                {k: d[k] for k in ("job_id", "filename", "created_at", "status")}
-                | {
-                    "verdict": d["model_result"]["verdict"]
-                    if d["model_result"]
-                    else None
-                }
-                for d in store.list()
-            ]
-        }
+        return {"items": store.summaries()}
 
     @app.get("/api/ui/cases/{job_id}")
     def case(job_id: str, request: Request):

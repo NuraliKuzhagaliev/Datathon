@@ -5,15 +5,19 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from .. import media
 from ..contracts import validate_result
 from ..errors import ProcessingError
+from ..reproducibility import configuration
 
 
-class Observation(BaseModel):
+class ScreenCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     rule_id: str
     event_frame_id: str
     frame_ids: list[str] = Field(min_length=1, max_length=3)
     predicates: dict[str, StrictBool]
     applicable: StrictBool
+
+
+class Observation(ScreenCandidate):
     complete_context: StrictBool
     exclusion_present: StrictBool
     observation: str = Field(min_length=1, max_length=1000)
@@ -27,7 +31,13 @@ class WindowOutput(BaseModel):
     visibility_limited: StrictBool
 
 
-def windows(duration, size=28.0, overlap=4.0):
+class ScreenOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    events: list[ScreenCandidate] = Field(max_length=16)
+    visibility_limited: StrictBool
+
+
+def windows(duration, size=14.0, overlap=2.0):
     start = 0.0
     while start < duration:
         end = min(start + size, duration)
@@ -40,8 +50,10 @@ def windows(duration, size=28.0, overlap=4.0):
 class Pipeline:
     def __init__(self, model, registry, max_candidates=8):
         self.model, self.registry, self.max_candidates = model, registry, max_candidates
+        self.configuration = configuration(max_candidates)
 
     def ask(self, frames, verify, deadline, private_dir):
+        schema = WindowOutput if verify else ScreenOutput
         mode = (
             "Verify the proposed possible event AND a plausible benign explanation in its full temporal context."
             if verify
@@ -49,10 +61,10 @@ class Pipeline:
         )
         prompt = (
             mode
-            + " Select frame IDs verbatim. event_frame_id must be one of the evidence frame_ids: choose the action's actual instant, or the first instant an omission becomes supportable, never the beginning of preceding context. Include before/action/after evidence where available. Required predicates must each be evaluated. Never infer missing steps from occlusion. A readable limited interval can have no candidates. No generic anomaly is a legal violation.\nRules="
+            + ' Return ONLY plausible event candidates, never one entry per frame or negative findings. If no plausible event, return {"events":[],"visibility_limited":false} (set visibility_limited truthfully). Keep text brief. Select frame IDs verbatim. event_frame_id must be one of the evidence frame_ids: choose the action instant or first supportable omission, never preceding context. Include before/action/after evidence where available. Evaluate every predicate. Occlusion does not prove an omission. Generic anomalies are not legal violations.\nRules='
             + json.dumps(self.registry.prompt(), ensure_ascii=False)
             + "\nJSON schema="
-            + json.dumps(WindowOutput.model_json_schema())
+            + json.dumps(schema.model_json_schema())
         )
         if verify:
             prompt += "\nCandidate=" + verify.model_dump_json()
@@ -72,7 +84,7 @@ class Pipeline:
                     text = text[3:]
                 if text.endswith("```"):
                     text = text[:-3]
-                output = WindowOutput.model_validate_json(text.strip())
+                output = schema.model_validate_json(text.strip())
                 allowed = {f["id"] for f in frames}
                 for event in output.events:
                     if (
@@ -101,6 +113,9 @@ class Pipeline:
     def run(
         self, source: Path, directory: Path, job_id: str, deadline: float, progress
     ):
+        (directory / "configuration.json").write_text(
+            json.dumps(self.configuration, indent=2), encoding="utf-8"
+        )
         if not self.registry.enabled:
             raise ProcessingError(
                 "ANALYSIS_INCOMPLETE", "No verified rule categories are enabled"
@@ -123,12 +138,14 @@ class Pipeline:
         for n, (start, end) in enumerate(plan):
             progress(stage="screening", progress_percent=100 * n / len(plan))
             frames = [
-                f
-                for f in coarse.values()
-                if start - 0.05 <= f["timestamp_sec"] <= end + 0.05
+                f for f in coarse.values() if start - 0.05 <= f["timestamp_sec"] < end
             ]
             output = self.ask(frames, None, deadline, directory / "private-inference")
-            candidates.extend(output.events)
+            candidates.extend(
+                event
+                for event in output.events
+                if event.applicable and any(event.predicates.values())
+            )
             scope = "Проверяются только включенные категории правил; отрицательный результат не подтверждает соблюдение всех процедур."
             coverage.append(
                 dict(
@@ -144,7 +161,6 @@ class Pipeline:
         # Merge only same-rule overlapping candidates, never different simultaneous types.
         merged = []
         for event in candidates:
-            t = coarse[event.event_frame_id]["timestamp_sec"]
             if any(
                 other.rule_id == event.rule_id
                 and set(other.frame_ids) & set(event.frame_ids)
@@ -162,20 +178,28 @@ class Pipeline:
             progress(stage="verifying", progress_percent=100 * n / max(1, len(merged)))
             t = coarse[candidate.event_frame_id]["timestamp_sec"]
             start, end = max(0, t - 12), min(timeline.duration, t + 12)
+            dense_indices = set(
+                media.sample_indices(timeline, max(start, t - 2), min(end, t + 2), 2)
+            )
+            dense_indices.update(
+                timeline.nearest(point)
+                for point in [
+                    start,
+                    max(start, t - 6),
+                    t,
+                    min(end, t + 6),
+                    max(start, end - 0.001),
+                ]
+            )
             dense = media.extract(
                 source,
                 timeline,
-                media.sample_indices(timeline, start, end, 2),
+                sorted(dense_indices),
                 directory / f"verify-{n}",
                 deadline,
             )
-            # Bound each model call while covering context on both sides of the event.
+            # Dense action interval plus wider before/after anchors; never truncate.
             dense_values = list(dense.values())
-            if len(dense_values) > 32:
-                indices = sorted(
-                    {round(i * (len(dense_values) - 1) / 31) for i in range(32)}
-                )
-                dense_values = [dense_values[i] for i in indices]
             verified = self.ask(
                 dense_values, candidate, deadline, directory / "private-inference"
             )
@@ -199,15 +223,19 @@ class Pipeline:
                 accepted.append((event, timecode, frames, start, end))
         progress(stage="packaging", progress_percent=None)
         accepted.sort(key=lambda item: item[1])
-        violations, events, snapshots = [], [], {}
+        violations, events = [], []
+        snapshots = {key: rule["public"] for key, rule in self.registry.enabled.items()}
+        source_dir = directory / "rule-sources"
+        source_dir.mkdir(exist_ok=True)
+        for rule in self.registry.enabled.values():
+            source = (self.registry.path.parent / rule["snapshot"]).read_bytes()
+            (source_dir / (rule["public"]["source_sha256"] + ".txt")).write_bytes(
+                source
+            )
         for i, (observation, t, frames, start, end) in enumerate(accepted):
             rule = self.registry.enabled[observation.rule_id]
             public = rule["public"]
             snapshots[public["rule_id"]] = public
-            source_dir = directory / "rule-sources"
-            source_dir.mkdir(exist_ok=True)
-            source = (self.registry.path.parent / rule["snapshot"]).read_bytes()
-            (source_dir / (public["source_sha256"] + ".txt")).write_bytes(source)
             ev = [media.evidence(f) for f in frames]
             description = observation.observation + " " + rule["template"]
             violations.append(

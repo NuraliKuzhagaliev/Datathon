@@ -14,9 +14,21 @@ def main():
     p.add_argument("--model-dir", type=Path, required=True)
     p.add_argument("--video", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--deny-network", action="store_true")
     a = p.parse_args()
     a.output.mkdir(parents=True, exist_ok=True)
     force_offline()
+    network_attempts = []
+    if a.deny_network:
+        import socket
+
+        def denied(*args, **kwargs):
+            network_attempts.append(True)
+            raise OSError("Network access is disabled for the local smoke process")
+
+        socket.socket.connect = denied
+        socket.socket.connect_ex = denied
+        socket.getaddrinfo = denied
     start = time.perf_counter()
     model = LocalQwen(a.model_dir)
     load = time.perf_counter() - start
@@ -46,6 +58,8 @@ def main():
         "gpu": model.torch.cuda.get_device_name(),
         "torch": model.torch.__version__,
         "bf16_supported": model.torch.cuda.is_bf16_supported(),
+        "python_network_denied": a.deny_network,
+        "network_attempts": len(network_attempts),
     }
     (a.output / "metrics.json").write_text(
         json.dumps(metrics, indent=2), encoding="utf-8"

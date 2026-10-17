@@ -221,6 +221,32 @@ class Store:
             ]
         return [self.get(job) for job in ids]
 
+    def summaries(self):
+        with self.connect() as db:
+            rows = db.execute("""SELECT id,state,json_extract(detail,'$.filename') AS filename,
+                json_extract(detail,'$.created_at') AS created_at,
+                json_extract(detail,'$.model_result.verdict') AS verdict
+                FROM jobs ORDER BY created DESC LIMIT 200""").fetchall()
+        return [
+            dict(
+                job_id=r["id"],
+                filename=r["filename"],
+                created_at=r["created_at"],
+                status=r["state"],
+                verdict=r["verdict"],
+            )
+            for r in rows
+        ]
+
+    def pending_previews(self):
+        with self.connect() as db:
+            return [
+                row[0]
+                for row in db.execute(
+                    "SELECT id FROM jobs WHERE state='done' AND json_extract(detail,'$.media_ready')=0"
+                )
+            ]
+
     def review(self, job, event_id, decision, note):
         if not any(e["event_id"] == event_id for e in self.get(job)["events"]):
             raise KeyError(event_id)

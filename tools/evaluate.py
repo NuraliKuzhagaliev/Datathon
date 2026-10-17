@@ -60,6 +60,10 @@ def main():
     latencies = []
     time_errors = []
     ambiguous = 0
+    failure_codes = defaultdict(int)
+    failure_latency = []
+    evidence_frames = 0
+    selected = [rs for rs in by_hash.values() if rs[0]["split"] == a.split]
     for digest, rs in by_hash.items():
         if rs[0]["split"] != a.split:
             continue
@@ -91,16 +95,35 @@ def main():
             predicted_times = [
                 e["timecode_sec"] for e in result["model_result"]["violations"]
             ]
+            evidence_frames += sum(
+                len(event["evidence_frames"])
+                for event in result["model_result"]["violations"]
+            )
             if predicted_times and label:
                 # Each provided annotation is preserved, including both duplicate times.
                 time_errors.extend(
                     min(abs(t - v) for v in predicted_times) for t in annotations
                 )
-        except Exception:
+        except Exception as error:
             failures += 1
+            failure_latency.append(time.time() - start)
+            code = getattr(error, "code", "PROCESSING_FAILED")
+            failure_codes[code] += 1
             (directory / "failure.json").write_text(
                 json.dumps({"technical_failure": True}), encoding="utf-8"
             )
+        print(
+            json.dumps(
+                {
+                    "event": "evaluation_progress",
+                    "split": a.split,
+                    "finished": tp + tn + fp + fn + failures,
+                    "total": len(selected),
+                    "failed": failures,
+                }
+            ),
+            flush=True,
+        )
     completed = tp + tn + fp + fn
     recall = ratio(tp, tp + fn)
     specificity = ratio(tn, tn + fp)
@@ -109,12 +132,18 @@ def main():
         "run_id": run_id,
         "split": a.split,
         "model_version": model.version,
+        "configuration": pipeline.configuration,
         "rule_version": registry.version,
         "manifest_sha256": hashlib.sha256(a.manifest.read_bytes()).hexdigest(),
         "unique_videos": completed + failures,
         "label_rows": label_rows,
         "completed": completed,
         "failed": failures,
+        "failure_codes": dict(failure_codes),
+        "failure_latency_sec": failure_latency,
+        "positive_unique_denominator": sum(int(rs[0]["label"]) for rs in selected),
+        "negative_unique_denominator": sum(1 - int(rs[0]["label"]) for rs in selected),
+        "valid_evidence_frames": evidence_frames,
         "confusion_matrix_completed": {"tp": tp, "tn": tn, "fp": fp, "fn": fn},
         "precision": ratio(tp, tp + fp),
         "recall": recall,

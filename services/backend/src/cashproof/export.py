@@ -13,6 +13,9 @@ def bundle(detail, directory: Path):
             detail, ensure_ascii=False, indent=2, allow_nan=False
         ).encode("utf-8")
     }
+    configuration = directory / "configuration.json"
+    if configuration.is_file():
+        files["configuration.json"] = configuration.read_bytes()
     for i, event in enumerate(detail["events"]):
         for j, frame in enumerate(event["evidence_frames"]):
             files[f"evidence/event-{i:03d}-{j}.jpg"] = base64.b64decode(
