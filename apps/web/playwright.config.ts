@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 import path from 'node:path';
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: ['**/workspace.spec.ts', '**/language.spec.ts'],
+  testMatch: ['**/workspace.spec.ts', '**/language.spec.ts', '**/polish.spec.ts'],
   outputDir: './dist/test-results',
   reporter: [['list'], ['html', { outputFolder: path.resolve('apps/web/dist/playwright-report'), open: 'never' }]],
   timeout: 30000,

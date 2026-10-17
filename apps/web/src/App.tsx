@@ -1,17 +1,17 @@
 import { LanguageSwitcher, useI18n } from './i18n';
 import { useEffect, useState } from 'react';
-import { FolderOpen, BookOpen, SlidersHorizontal, Plus, ArrowUpRight, ShieldCheck, Search, ChevronRight, FileVideo, Clock3, AlertTriangle, CircleCheck, LogOut, KeyRound, Monitor, Server, RefreshCw, FlaskConical, Trash2, ArrowRight, Network } from 'lucide-react';
+import { FolderOpen, BookOpen, SlidersHorizontal, ArrowUpRight, ShieldCheck, Search, ChevronRight, FileVideo, CircleCheck, KeyRound, Monitor, Server, RefreshCw, FlaskConical, ArrowRight, Network } from 'lucide-react';
 import { HttpApi, errorText } from './api/client';
-import type { ReviewApi, CaseSummary } from './api/types';
-import { Brand, ErrorNotice, Loading, Modal, Tag } from './components/ui';
+import type { ReviewApi } from './api/types';
+import { Brand, ErrorNotice, Tag } from './components/ui';
 import { Upload } from './features/Upload';
 import { Evidence } from './features/Evidence';
 import { Rules } from './features/Rules';
-import { QuickStart } from './features/QuickStart';
+import { Cases } from './features/Cases';
+import { ReviewDraftProvider, SessionExit } from './features/ReviewDrafts';
 import { useRequest } from './lib/useRequest';
 
 type Page = 'cases' | 'rules' | 'system';
-const statusLabel = (item: CaseSummary) => item.status === 'failed' ? 'Ошибка обработки' : item.status === 'processing' ? 'Обрабатывается' : item.verdict === 'violation' ? 'Требует проверки' : 'Признаков не обнаружено';
 function readCase() { const hash = window.location.hash.slice(1); return hash.startsWith('case=') ? new URLSearchParams(hash).get('case') : null; }
 
 function Connect({ connected, demo }: { connected: (api: ReviewApi) => void; demo?: () => void }) {
@@ -27,26 +27,6 @@ function Connect({ connected, demo }: { connected: (api: ReviewApi) => void; dem
   </div>;
 }
 function EyeMark() { return <Search size={19}/>; }
-
-function Cases({ api, open, newAnalysis, guideExpanded, toggleGuide }: { api: ReviewApi; open: (id: string) => void; newAnalysis: () => void; guideExpanded: boolean; toggleGuide: () => void }) {
-  const { t } = useI18n();
-  const request = useRequest(signal => api.list(signal), [api], 5000); const [query, setQuery] = useState(''); const [filter, setFilter] = useState('all');
-  const [deleting, setDeleting] = useState<CaseSummary>(); const [deleteBusy, setDeleteBusy] = useState(false); const [deleteError, setDeleteError] = useState('');
-  const { locale } = useI18n();
-  const content = (value: string) => api.synthetic ? api.demoText?.(value, locale) ?? value : value;
-  const items = request.data?.items.filter(item => content(item.filename).toLocaleLowerCase().includes(query.toLocaleLowerCase()) && (filter === 'all' || (filter === 'attention' ? item.verdict === 'violation' : item.status === filter))) ?? [];
-  async function remove() { if (!deleting || deleteBusy) return; setDeleteBusy(true); setDeleteError(''); try { await api.remove(deleting.job_id); setDeleting(undefined); request.retry(); } catch (e) { setDeleteError(errorText(e)); } finally { setDeleteBusy(false); } }
-  return <section className="page"><div className="page-heading"><div><div className="eyebrow">{t("РАБОЧЕЕ ПРОСТРАНСТВО")}</div><h1>{t("Проверка операций")}</h1><p className="page-description">{t("Видео, доказательства и решения. Всё, что нужно для внимательной проверки.")}</p></div><button className="button primary" onClick={newAnalysis}><Plus size={18}/>{t("Новый анализ")}</button></div>
-    <QuickStart expanded={guideExpanded} toggle={toggleGuide} synthetic={api.synthetic} start={api.synthetic ? () => { const example = request.data?.items.find(item => item.verdict === "violation") ?? request.data?.items[0]; if (example) open(example.job_id); else newAnalysis(); } : newAnalysis}/>
-    <div className="section-toolbar"><div className="filter-tabs" role="group" aria-label={t("Фильтр дел")}>{[['all',t("Все дела")],['attention',t("Требуют проверки")],['processing',t("В обработке")]].map(([value,label]) => <button key={value} aria-pressed={filter === value} className={filter === value ? 'active' : ''} onClick={() => setFilter(value)}>{label}</button>)}</div><label className="search"><Search size={17}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder={t("Поиск по имени файла")} aria-label={t("Поиск дел")}/></label><button className="icon-button" aria-label={t("Обновить список")} onClick={request.retry}><RefreshCw size={17}/></button></div>
-    {request.error && <ErrorNotice message={request.error} retry={request.retry}/>}{request.loading && <Loading/>}
-    {!!items.length && <div className="case-table"><div className="table-head"><span>{t("Видеозапись")}</span><span>{t("Результат")}</span><span>{t("Создано")}</span><span/></div>{items.map(item => <div className="case-row" key={item.job_id}><button className="case-open" onClick={() => open(item.job_id)}><span className="file-icon"><FileVideo size={22}/></span><span><strong>{content(item.filename)}</strong><small className="mono">{item.job_id}</small></span></button><div className="case-status"><Tag tone={item.status === 'failed' ? 'red' : item.status === 'processing' ? 'violet' : item.verdict === 'violation' ? 'amber' : 'mint'}>{item.status === 'processing' ? <Clock3 size={14}/> : item.verdict === 'no_violation' ? <CircleCheck size={14}/> : <AlertTriangle size={14}/>}{t(statusLabel(item))}</Tag></div><time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString(locale === 'en' ? 'en-GB' : 'ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</time><div className="row row-actions"><button className="icon-button" aria-label={t("Удалить дело {0}", [item.job_id])} onClick={() => { setDeleting(item); setDeleteError(''); }}><Trash2 size={15}/></button><button className="icon-button" aria-label={t("Открыть дело {0}", [item.job_id])} onClick={() => open(item.job_id)}><ChevronRight size={19}/></button></div></div>)}</div>}
-    {!request.loading && !request.error && !items.length && <div className="empty"><FolderOpen size={36}/><h2>{query || filter !== 'all' ? t("Подходящих дел нет") : t("Первое дело начинается с видео")}</h2><p>{query || filter !== 'all' ? t("Измените поиск или фильтр.") : t("Загрузите MOV, чтобы получить результат с привязкой ко времени и доказательствами.")}</p>{!query && filter === 'all' && <button className="button secondary" onClick={newAnalysis}><Plus size={17}/>{t("Добавить видео")}</button>}</div>}
-    <div className="list-footnote"><ShieldCheck size={16}/>{t("Выводы системы помогают проверяющему и не являются юридическим заключением.")}</div>
-    {deleting && <Modal title={t("Удалить дело?")} close={() => { if (!deleteBusy) setDeleting(undefined); }}><p>{t("Дело «")}{content(deleting.filename)}{t("» и сохранённые материалы будут удалены на сервере. Это действие нельзя отменить.")}</p>{deleteError && <ErrorNotice message={deleteError}/>}<div className="modal-actions"><button className="button secondary" disabled={deleteBusy} onClick={() => setDeleting(undefined)}>{t("Отмена")}</button><button className="button destructive" disabled={deleteBusy} onClick={remove}>{deleteBusy ? t("Удаление…") : t("Удалить дело")}</button></div></Modal>}
-  </section>;
-}
-
 
 function System({ api }: { api: ReviewApi }) {
   const { t } = useI18n();
@@ -74,13 +54,13 @@ export function App() {
   const health = useRequest(async signal => api ? api.health(signal) : null, [api], api ? 10000 : 0);
   function open(id: string) { setPage('cases'); location.hash = new URLSearchParams({ case: id }).toString(); setCaseId(id); }
   function navigate(next: Page) { setFocusMode(false); setPage(next); setCaseId(null); history.replaceState(null, '', location.pathname + location.search); }
-  return <div className={`app-shell ${!api ? 'disconnected' : ''} ${focusMode && api && caseId ? 'focus-mode' : ''}`}><a className="skip-link" href="#main">{t("Перейти к содержимому")}</a><aside className="sidebar"><Brand/><div className="nav-label">{t("РАБОЧЕЕ МЕСТО")}</div><nav aria-label={t("Основная навигация")}>{([['cases',FolderOpen,t("Дела")],['rules',BookOpen,t("Библиотека норм")],['system',SlidersHorizontal,t("Система")]] as const).map(([value,Icon,label]) => <button key={value} aria-label={label} disabled={!api} aria-current={page === value && api ? 'page' : undefined} className={page === value && api ? 'active' : ''} onClick={() => navigate(value)}><Icon size={19}/><span>{label}</span>{page === value && api && <span className="nav-indicator"/>}</button>)}</nav><div className="sidebar-bottom"><div className="local-note"><ShieldCheck size={21}/><strong>{t("Проверяемые выводы")}</strong><p>{t("Каждое событие связано с кадром, временем и источником.")}</p></div><div className="workspace-label"><span className="workspace-avatar">CP</span><span>CashProof<small>{t("Команда хакатона")}</small></span></div></div></aside>
-    <div className="main-shell"><header className="topbar"><div className="breadcrumb">{t("Рабочее пространство ")}<ChevronRight size={14}/><strong>{!api ? t("Подключение") : caseId ? t("Проверка дела") : page === 'cases' ? t("Дела") : page === 'rules' ? t("Библиотека норм") : t("Система")}</strong></div><div className="topbar-right"><LanguageSwitcher/><span className={`connection ${api?.synthetic ? 'amber' : health.data?.ready ? 'mint' : ''}`}><span className="state-dot"/>{api?.synthetic ? t("Демонстрация") : health.data?.ready ? health.data.mode === 'offline' ? t("Локальный сервис готов") : t("Сервер готов") : api ? t("Сервис не готов") : t("Нет подключения")}</span>{api && <button className="icon-button" aria-label={t("Отключиться")} onClick={() => { setApi(undefined); navigate('cases'); }}><LogOut size={17}/></button>}</div></header>
+  return <ReviewDraftProvider api={api}><div className={`app-shell ${!api ? 'disconnected' : ''} ${focusMode && api && caseId ? 'focus-mode' : ''}`}><a className="skip-link" href="#main">{t("Перейти к содержимому")}</a><aside className="sidebar"><Brand/><div className="nav-label">{t("РАБОЧЕЕ МЕСТО")}</div><nav aria-label={t("Основная навигация")}>{([['cases',FolderOpen,t("Дела")],['rules',BookOpen,t("Библиотека норм")],['system',SlidersHorizontal,t("Система")]] as const).map(([value,Icon,label]) => <button key={value} aria-label={label} disabled={!api} aria-current={page === value && api ? 'page' : undefined} className={page === value && api ? 'active' : ''} onClick={() => navigate(value)}><Icon size={19}/><span>{label}</span>{page === value && api && <span className="nav-indicator"/>}</button>)}</nav><div className="sidebar-bottom"><div className="local-note"><ShieldCheck size={21}/><strong>{t("Проверяемые выводы")}</strong><p>{t("Каждое событие связано с кадром, временем и источником.")}</p></div><div className="workspace-label"><span className="workspace-avatar">CP</span><span>CashProof<small>{t("Команда хакатона")}</small></span></div></div></aside>
+    <div className="main-shell"><header className="topbar"><div className="breadcrumb">{t("Рабочее пространство ")}<ChevronRight size={14}/><strong>{!api ? t("Подключение") : caseId ? t("Проверка дела") : page === 'cases' ? t("Дела") : page === 'rules' ? t("Библиотека норм") : t("Система")}</strong></div><div className="topbar-right"><LanguageSwitcher/><span className={`connection ${api?.synthetic ? 'amber' : health.data?.ready ? 'mint' : ''}`}><span className="state-dot"/>{api?.synthetic ? t("Демонстрация") : health.data?.ready ? health.data.mode === 'offline' ? t("Локальный сервис готов") : t("Сервер готов") : api ? t("Сервис не готов") : t("Нет подключения")}</span>{api && <SessionExit leave={() => { setApi(undefined); navigate('cases'); }}/>}</div></header>
     {api?.synthetic && <div className="synthetic-bar"><FlaskConical size={16}/><strong>{t("Синтетическое демо")}</strong><span>{t("Примеры интерфейса. Модель не выполнялась; решения сохраняются только в памяти.")}</span></div>}
     <main id="main">{initError && <ErrorNotice message={initError}/>}<AppErrorBoundary>{!api ? <Connect connected={setApi} demo={import.meta.env.DEV ? demo : undefined}/> : page === 'rules' ? <Rules api={api}/> : page === 'system' ? <System api={api}/> : caseId ? <Evidence key={caseId} api={api} id={caseId} focused={focusMode} setFocused={setFocusMode} back={() => navigate('cases')} newAnalysis={() => setUpload(true)}/> : <Cases api={api} open={open} newAnalysis={() => setUpload(true)} guideExpanded={guideExpanded} toggleGuide={() => setGuideExpanded(v => !v)}/>}</AppErrorBoundary></main>
     <footer className="app-footer"><span>CashProof <span className="muted">/</span>{t(" Проверка операций")}</span><span>{t("Наблюдение → доказательство → решение ")}<ArrowUpRight size={13}/></span></footer></div>
     {upload && api && <Upload api={api} close={() => setUpload(false)} accepted={id => { setUpload(false); open(id); }}/>}
-  </div>;
+  </div></ReviewDraftProvider>;
 }
 
 import { Component, type ReactNode } from 'react';
