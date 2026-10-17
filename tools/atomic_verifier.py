@@ -13,7 +13,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
     def __init__(self, model, registry, max_candidates=8):
         super().__init__(model, registry, max_candidates)
         model.runtime_configuration.update(
-            experimental_verifier="occurrence-specific independent checks v5; individual exclusions; dense onset refinement with condition witnesses",
+            experimental_verifier="occurrence-specific independent checks v6; grounded exclusions; local image indices; dense onset refinement",
             atomic_verifier_sha256=hashlib.sha256(
                 Path(__file__).read_bytes()
             ).hexdigest(),
@@ -84,6 +84,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
             "Read images in the supplied order. Do not identify individuals or infer intent, permission or ledger facts. "
             "For supported select its FIRST supportable source index and include it in evidence_indices. "
             "For contradicted/unobservable use null for first_supported_index. "
+            "For supported AND contradicted provide actual evidence_indices. An opposite claim without observable evidence is unobservable. "
             + (
                 "Proposed occurrence="
                 + json.dumps(focus, separators=(",", ":"))
@@ -101,6 +102,10 @@ class AtomicFactPipeline(TriggerFactPipeline):
         )
 
         def parse(value):
+            if value["support"] != "unobservable" and not value["evidence_indices"]:
+                raise ValueError(
+                    "A positive or opposite condition needs actual source evidence"
+                )
             if value["support"] == "supported" and (
                 value["first_supported_index"] is None
                 or value["first_supported_index"] not in value["evidence_indices"]

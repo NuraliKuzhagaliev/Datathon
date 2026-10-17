@@ -9,6 +9,7 @@ from PIL import Image
 from fact_pipeline import TriggerFactPipeline
 from source_time_controls import verify
 from atomic_verifier import AtomicFactPipeline
+from fact_screening_controls import verify as verify_screen
 
 
 class GeneratedGeometryOracle:
@@ -59,7 +60,7 @@ class GeneratedGeometryOracle:
                 "visible_change": "Generated geometry evidence",
                 "support": "supported" if supported else "contradicted",
                 "first_supported_index": onset if supported else None,
-                "evidence_indices": [onset] if supported else [],
+                "evidence_indices": [onset] if onset is not None else [],
             }
         elif "event_frame_index" in properties and "predicates" not in properties:
             result = {
@@ -112,3 +113,9 @@ def test_vfr_control_runs_all_the_way_to_exact_source_time(
     assert result["cases"][0]["decoded_source_pts_sec"] == [0.0, 0.4, 1.2, 2.7]
     if extended:
         assert result["cases"][-1]["event_source_times_sec"] == [0.4, 3.4]
+
+
+def test_screen_source_mapping_survives_sparse_global_frame_ids(tmp_path):
+    result = verify_screen(GeneratedGeometryOracle(), tmp_path, AtomicFactPipeline)
+    assert result["passed"]
+    assert len(result["controls"]) == 3

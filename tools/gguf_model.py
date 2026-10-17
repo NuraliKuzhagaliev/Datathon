@@ -48,7 +48,7 @@ def checked_file(root, item):
 def image_content(frames, pixels, edge):
     """Only locally read, bounded image bytes; source PTS stays in the legend."""
     content = []
-    for frame in frames:
+    for local_index, frame in enumerate(frames):
         with Image.open(frame["path"]) as source:
             image = source.convert("RGB")
         try:
@@ -66,7 +66,7 @@ def image_content(frames, pixels, edge):
                 [
                     {
                         "type": "text",
-                        "text": f"Frame {frame['id']} at {frame['timestamp_sec']:.6f} source seconds",
+                        "text": f"Source index {local_index} at {frame['timestamp_sec']:.6f} source seconds",
                     },
                     {
                         "type": "image_url",
@@ -152,6 +152,7 @@ class GGUFModel:
             "screening_max_new_tokens": 384,
             "verification_max_new_tokens": 1024,
             "visual_input": "ordered images with source PTS",
+            "index_mapping": "explicit zero-based local image index; opaque source IDs retained outside visual header",
             "quantization": ("Q8_0" if converted else "Q4_K_M")
             + ", F16 vision projector; q8_0 KV cache",
             "conversion_receipt_sha256": CONVERTED_RECEIPT_SHA256

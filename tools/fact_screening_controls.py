@@ -33,10 +33,18 @@ def verify(model, directory, pipeline_class=FactPipeline):
             {"id": f"f{i}", "timestamp_sec": [0.0, 0.4, 1.2, 2.7][i], "path": str(path)}
         )
     rows = []
-    for order, expected in [("forward", True), ("reverse", False)]:
+    for order, expected, offset in [
+        ("forward", True, False),
+        ("reverse", False, False),
+        ("forward-sparse-source-ids", True, True),
+    ]:
         sequence = frames if expected else list(reversed(frames))
         sequence = [
-            dict(f, id=f"f{i}", timestamp_sec=[0.0, 0.4, 1.2, 2.7][i])
+            dict(
+                f,
+                id=f"f{97 + 137 * i:07d}" if offset else f"f{i}",
+                timestamp_sec=[0.0, 0.4, 1.2, 2.7][i],
+            )
             for i, f in enumerate(sequence)
         ]
         pipeline = pipeline_class(model, registry)
@@ -45,7 +53,7 @@ def verify(model, directory, pipeline_class=FactPipeline):
             e.event_frame_id in {f["id"] for f in sequence} for e in result.events
         )
         instant_correct = (
-            [e.event_frame_id for e in result.events] == ["f2"]
+            [e.event_frame_id for e in result.events] == [sequence[2]["id"]]
             if expected
             else not result.events
         )

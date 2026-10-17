@@ -21,13 +21,28 @@ def test_image_input_is_embedded_bounded_and_keeps_source_pts(tmp_path):
     content = image_content(
         [{"id": "actual-frame", "timestamp_sec": 1.234567, "path": source}], 131072, 848
     )
-    assert content[0]["text"] == "Frame actual-frame at 1.234567 source seconds"
+    assert content[0]["text"] == "Source index 0 at 1.234567 source seconds"
     uri = content[1]["image_url"]["url"]
     assert uri.startswith("data:image/png;base64,")
     with Image.open(BytesIO(base64.b64decode(uri.split(",", 1)[1]))) as image:
         assert image.width * image.height <= 131072
     with Image.open(source) as original:
         assert original.size == (464, 848)
+
+
+def test_local_image_indices_do_not_depend_on_sparse_source_frame_numbers(tmp_path):
+    source = tmp_path / "generated.png"
+    Image.new("RGB", (40, 20), "green").save(source)
+    frames = [
+        {"id": f"f{value:07d}", "timestamp_sec": timestamp, "path": source}
+        for value, timestamp in [(97, 0.0), (510, 1.2), (810, 2.7)]
+    ]
+    content = image_content(frames, 131072, 848)
+    assert [content[i]["text"] for i in (0, 2, 4)] == [
+        "Source index 0 at 0.000000 source seconds",
+        "Source index 1 at 1.200000 source seconds",
+        "Source index 2 at 2.700000 source seconds",
+    ]
 
 
 def adapter(handler):

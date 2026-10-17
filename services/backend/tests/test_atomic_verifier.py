@@ -38,7 +38,7 @@ class ScriptedChecks:
                 "visible_change": "Generated test evidence",
                 "support": status,
                 "first_supported_index": 2 if status == "supported" else None,
-                "evidence_indices": [2] if status == "supported" else [],
+                "evidence_indices": [2] if status != "unobservable" else [],
             }
         )
 
@@ -196,7 +196,7 @@ def test_each_exclusion_requires_its_own_counterevidence(
                         "visible_change": "Generated counterevidence",
                         "support": status,
                         "first_supported_index": 2 if status == "supported" else None,
-                        "evidence_indices": [2] if status == "supported" else [],
+                        "evidence_indices": [2] if status != "unobservable" else [],
                     }
                 )
             return super().infer(frames, instruction, deadline, output_schema)
@@ -219,3 +219,34 @@ def test_each_exclusion_requires_its_own_counterevidence(
     assert pipeline.stage_counts["atomic_exclusion_checks"] == 2
     assert bool(output.events) is (second_status == "contradicted")
     assert output.visibility_limited is (second_status == "unobservable")
+
+
+def test_opposite_statement_without_frame_evidence_cannot_clear_an_exclusion(
+    registry, tmp_path
+):
+    class UnsupportedOpposite(ScriptedChecks):
+        def infer(self, frames, instruction, deadline, output_schema=None):
+            value = json.loads(
+                super().infer(frames, instruction, deadline, output_schema)
+            )
+            if "This specific exclusion applies" in instruction:
+                value["evidence_indices"] = []
+            return json.dumps(value)
+
+    pipeline = AtomicFactPipeline(UnsupportedOpposite([]), registry)
+    candidate = ScreenCandidate(
+        rule_id="TEST-A",
+        event_frame_id="f2",
+        frame_ids=["f2"],
+        predicates={"observed": True},
+        applicable=True,
+    )
+    with pytest.raises(ProcessingError) as failure:
+        pipeline.ask(
+            [{"id": f"f{i}", "timestamp_sec": float(i)} for i in range(3)],
+            candidate,
+            time.time() + 60,
+            tmp_path / "private",
+        )
+    assert failure.value.code == "MODEL_OUTPUT_INVALID"
+    assert pipeline.stage_counts["eligible_assessments"] == 0

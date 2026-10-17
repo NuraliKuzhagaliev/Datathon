@@ -26,7 +26,7 @@ class CompactPipeline(Pipeline):
                 "Proposed source frame is absent from verification context",
             )
         return {
-            "source_frame_id": frame["id"],
+            "sampled_local_index": next(i for i, f in enumerate(frames) if f is frame),
             "source_seconds": frame["timestamp_sec"],
         }
 
