@@ -2,6 +2,22 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 const fixture = (name: string) => JSON.parse(readFileSync(`packages/contracts/fixtures/${name}.json`, 'utf8'));
 
+test('bundled notices remain readable with network blocked and keyboard dismissal restores focus', async ({ page }) => {
+  await page.goto('/?demo=1');
+  await page.getByRole('button', { name: 'Система', exact: true }).click();
+  await page.route('**/*', route => route.abort());
+  const trigger = page.getByRole('button', { name: 'Открыть лицензии интерфейса', exact: true });
+  await trigger.click();
+  await expect(page.getByRole('dialog')).toContainText('react 19.3.1');
+  await expect(page.getByRole('dialog')).toContainText('SIL OPEN FONT LICENSE');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('dialog')).toBeVisible();
+  expect(await page.getByRole('dialog').evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
+  await page.screenshot({ path: 'apps/web/dist/qa-notices-390.png', fullPage: true });
+  await page.keyboard.press('Escape');
+  await expect(trigger).toBeFocused();
+});
+
 test('Russian quick start can collapse, reopen and navigate to a marked demo', async ({ page }) => {
   await page.goto('/?demo=1');
   await expect(page.getByRole('heading', {name:'Четыре шага проверки'})).toBeVisible();

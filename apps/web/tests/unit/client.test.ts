@@ -2,7 +2,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 import { HttpApi, errorText } from '../../src/api/client';
 
 afterEach(() => vi.unstubAllGlobals());
-for (const [status, expected] of [[401,'Ключ доступа'],[404,'не найдены'],[413,'размер'],[415,'формат'],[422,'отклонил'],[429,'Очередь'],[503,'не готовы']] as const) {
+for (const [status, expected] of [[401,'Ключ доступа'],[404,'не найден сервис анализа'],[413,'размер'],[415,'формат'],[422,'отклонил'],[429,'Очередь'],[503,'не готовы']] as const) {
   test(`HTTP ${status} gives a safe recovery message`, async () => {
     vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response(JSON.stringify({error:{code:'TEST',message:'Untrusted server detail must not be exposed'}}),{status,headers:{'Retry-After':'15'}})));
     const api = new HttpApi('synthetic-test-key');

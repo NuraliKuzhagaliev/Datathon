@@ -7,7 +7,8 @@
   "scripts": {
     "generate:api": "openapi-typescript packages/contracts/openapi.json -o apps/web/src/api/generated/schema.d.ts && node apps/web/scripts/generate-validators.mjs",
     "dev:web": "pnpm --filter @cashproof/web dev",
-    "build:web": "pnpm generate:api && pnpm --filter @cashproof/web build",
+    "build:web": "pnpm generate:api && pnpm generate:notices && pnpm --filter @cashproof/web build",
+    "generate:notices": "node apps/web/scripts/generate-notices.mjs",
     "dev:desktop": "pnpm build:web && electron apps/desktop",
     "build:desktop": "pnpm build:web && node apps/desktop/scripts/package.mjs",
     "build:desktop:connected": "pnpm build:web && node apps/desktop/scripts/package.mjs --connected",
