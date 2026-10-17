@@ -2,7 +2,7 @@
 
 Local video review for possible cashier-procedure violations, with source-linked evidence and a separate human decision.
 
-**Status:** backend and B's React/Electron frontend are integrated on contract 1.0.0. The local same-origin GPU service is running at `http://127.0.0.1:8000`; a new 28.7 MB development MOV completed through the separate jury key in 22.05 seconds. There are 23 passing backend tests, 43 UI/security tests, three browser/API synthetic scenarios and two production browser checks. Detection quality remains inadequate: the baseline development run missed all 15 positives (27 completed, one technical failure out of 28). The full packaged Windows EXE also processed a new real MOV in 33.63 seconds, with ZIP export/reload/shutdown verified. A checksummed private backend archive is ready. Public HTTPS, cross-machine access, full disconnected desktop execution and useful detection quality remain open. See [A's handoff to B](docs/integration/A_TO_B_STATUS.md) and [verification](docs/integration/verification.md).
+**Status:** backend and B's React/Electron frontend are integrated on contract 1.0.0. The local same-origin GPU service is running at `http://127.0.0.1:8000`; a new 28.7 MB development MOV completed through the separate jury key in 22.05 seconds. There are 23 passing backend tests, 43 UI/security tests, three browser/API synthetic scenarios and two production browser checks. Detection quality remains inadequate: the baseline development run missed all 15 positives (27 completed, one technical failure out of 28). The full packaged Windows EXE also processed a new real MOV in 33.63 seconds, with ZIP export/reload/shutdown verified. A checksummed private backend archive is ready. The public UI/API at https://cashproof-web.vercel.app now reaches the local GPU through a human-authorized temporary Cloudflare tunnel: a real 28.7 MB upload completed in 60.625 seconds. Independent cross-machine access, full disconnected desktop execution and useful detection quality remain open. See [A's handoff to B](docs/integration/A_TO_B_STATUS.md) and [verification](docs/integration/verification.md).
 
 ## Backend setup
 
@@ -44,7 +44,7 @@ Serve the production UI with `--frontend-dir apps/web/dist`; the same backend or
 
 This workstation actually uses the prepared Python environment at `../../work/.venv/Scripts/python.exe` relative to the repository. Credentials stay at `runtime-data/team-server/credentials.json`; enter the operator value locally in the UI and never paste it into an agent conversation. Do not regenerate keys for an existing case store.
 
-`127.0.0.1` is usable only on this computer. A team HTTPS route is still needed for B's separate PC. Desktop uses `--port 0`, loopback and a fresh per-launch key. The single stdout `http_ready` line reports the bound port; model readiness is a separate health check. Full offline packaging uses `pnpm build:desktop` after placing the verified private bundle at `releases/backend`. See the [runbook](docs/backend/runbook.md).
+`127.0.0.1` is usable only on this computer. B can now use https://cashproof-web.vercel.app with the existing keys delivered privately; see the [connected deployment handoff](docs/integration/VERCEL_WEB_HANDOFF.md). Keep the team server and temporary tunnel running; do not run heavy model experiments alongside them. Desktop uses `--port 0`, loopback and a fresh per-launch key. The single stdout `http_ready` line reports the bound port; model readiness is a separate health check. Full offline packaging uses `pnpm build:desktop` after placing the verified private bundle at `releases/backend`. See the [runbook](docs/backend/runbook.md).
 
 ## API and results
 
@@ -58,7 +58,7 @@ The backend includes a SQLite WAL queue, bounded admission, a supervised local m
 
 Only Resolution No. 231 §22 is enabled as an experimental detector. Six other researched candidates are disabled pending local validation. See [legal sources and scope](docs/backend/legal-sources.md). The service does not identify people, infer intent or permissions, verify ledger entries, analyze audio or pronounce guilt.
 
-`private-data`, `runtime-data`, `models`, keys and releases are ignored by Git. Dataset filenames, hashes and labels are used for integrity, grouping and evaluation, never prediction. The local reviewer returned a reviewed split of 28 development and 12 validation unique videos. Both times on the duplicate positive video are preserved. Only aggregate evaluation output belongs in coding-agent conversations.
+`private-data`, `runtime-data`, `models`, keys and releases are ignored by Git. Dataset filenames, hashes and labels are used for integrity, grouping and evaluation, never prediction. The returned manifest marks grouping reviewed and has 28 development and 12 validation unique videos; structural checks do not independently establish scene/view independence. Both times on the duplicate positive video are preserved. Only aggregate evaluation output belongs in coding-agent conversations.
 
 ## Team and release
 
@@ -73,6 +73,6 @@ Read [AGENTS.md](AGENTS.md), the [shared contract](forte_handoff/SHARED_CONTRACT
 
 The [architecture](docs/backend/architecture.md), [integration evidence](docs/integration/verification.md), [desktop launch schema](packages/contracts/desktop-launch.schema.json) and `tools/build_bundle.py` cover the release handoff. The bundle builder refuses missing prerequisites. A source folder, mock result or assembled bundle alone is not offline proof.
 
-Public HTTPS requires a team-controlled host and an external-network API exercise. No hostname or inbound route has been provisioned. Any relay handling private footage requires organizer clarification before use.
+The current public route is Vercel CDN → Cloudflare Tunnel → local inference. The human approved real-video transport after disclosure; organizer approval is not recorded. New synthetic and real uploads passed through the public origin from this host. An independent client/network and continuous jury-window availability remain unverified. The temporary upstream changes on restart; update both project routing rules before use. This route is an integration service, not a competition-readiness claim.
 
 CashProof is a working title and does not imply ForteBank endorsement.

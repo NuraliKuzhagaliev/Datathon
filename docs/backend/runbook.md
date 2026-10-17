@@ -28,7 +28,27 @@ curl.exe -X POST https://YOUR-TEAM-HOST/api/v1/analyze -H "X-API-Key: $env:CASHP
 curl.exe https://YOUR-TEAM-HOST/api/v1/jobs/RETURNED_JOB_ID -H "X-API-Key: $env:CASHPROOF_JURY_KEY"
 ```
 
-No public hostname is provisioned by this source checkout. External HTTPS, organizer hosting approval if a relay handles footage, external-network POST/poll and uptime remain deployment gates. Do not upload competition video to an unapproved relay, external AI or a public issue.
+The temporary public origin is https://cashproof-web.vercel.app, with same-origin API/health rewrites to the user-authorized Cloudflare Tunnel and actual local GPU. Existing operator/jury keys are preserved. A 28.7 MB real upload completed through this public route in 60.625 s; a generated control completed in 5.937 s with ZIP CRC verified. These clients ran on A's host; independent-network access remains unverified. Organizer approval is not recorded. Never send private footage or semantic reports to cloud AI or public issues.
+
+### Temporary tunnel operation
+
+The current service is already running. Do not launch another GPU worker or replace its tunnel. For a deliberate future restart after confirming the old owned PID has exited, preserve the old ignored tunnel status/log folder under a different name and invoke from this repository:
+
+```powershell
+../../work/.venv/Scripts/python.exe tools/start_https_tunnel.py --cloudflared ../../work/cloudflared-2026.10.1.exe
+```
+
+The launcher checks the pinned official Cloudflare executable SHA-256 and real loopback readiness, then starts a hidden HTTP/2 tunnel without installing a service or changing network settings. It refuses an existing technical-status.json. Status/logs remain in ignored runtime-data/team-server/tunnel. A new tunnel address requires updating and publishing both Vercel project CDN regex rewrites; see [exact rules and operating limits](../integration/VERCEL_WEB_HANDOFF.md). Keep Cache-Control: no-store on API/health. Test actual readiness and authenticated POST/poll before handing the new route to B. Never embed API keys in the URL, rules or frontend.
+
+An optional generated-only verification uses the real local model; it creates a new case and needs an idle admission slot. It reads keys privately and prints technical synthetic aggregates:
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path services/backend/src).Path
+$env:CASHPROOF_FFMPEG = (Resolve-Path ../../work/ffmpeg-9.0.2/ffmpeg.exe).Path
+../../work/.venv/Scripts/python.exe tools/verify_https_integration.py --base-url https://cashproof-web.vercel.app --credentials-file runtime-data/team-server/credentials.json --work-dir private-data/new-public-synthetic-probe --receipt ../../outputs/new-public-synthetic-receipt.json
+```
+
+Choose a new work directory. The HTTPS verifier refuses redirects, checks authentication/roles, polls within 300 s and reads the export ZIP fully. Do not repeat measured inference unnecessarily while B is using the GPU. Temporary tunnels have no uptime guarantee and stop with the process/computer; no automatic recovery is configured. See [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) and [upload-size limits](https://developers.cloudflare.com/network/maximum-upload-size/).
 
 ## Private evaluation
 
