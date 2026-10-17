@@ -50,6 +50,11 @@ def proposals(case):
                     for row in answer["checks"].values()
                     for event in row.get("events", [])
                 ]
+                selected.extend(
+                    i
+                    for row in answer["checks"].values()
+                    for i in row.get("event_indices", [])
+                )
                 if any(
                     type(i) is not int or not 0 <= i < len(legend) for i in selected
                 ):

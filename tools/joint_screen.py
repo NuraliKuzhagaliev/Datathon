@@ -1,4 +1,4 @@
-"""Short, detailed joint action screening; unchanged AtomicFact final gates."""
+"""Short exact-action proposals; unchanged AtomicFact final legal/evidence gates."""
 
 import hashlib
 import json
@@ -18,13 +18,13 @@ class JointScreenPipeline(AtomicFactPipeline):
         if fps not in {1, 2, 4}:
             raise ValueError("Unqualified screening density")
         model.runtime_configuration.update(
-            experimental_screening="short joint visible-action screen v3; compact exact-action states and measured source sampling",
+            experimental_screening="short joint exact-action screen v4; first criterion witness; no inferred episode merging",
             joint_screen_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             screening_window_sec=3.5 if fps == 4 else 7,
             screening_overlap_sec=0.5 if fps == 4 else 1,
             screening_max_pixels=131072 if use_motion_views else 393472,
             verification_max_pixels=393472,
-            screening_max_new_tokens=1024,
+            screening_max_new_tokens=768,
             auxiliary_motion_screen_views=use_motion_views,
         )
         self.configuration = configuration(
@@ -33,15 +33,8 @@ class JointScreenPipeline(AtomicFactPipeline):
             getattr(model, "manifest", None),
             model.runtime_configuration,
         )
-        self.stage_counts.update(
-            joint_screen_calls=0, raw_joint_proposals=0, merged_visible_continuations=0
-        )
-        self.screen_episodes = []
+        self.stage_counts.update(joint_screen_calls=0, raw_joint_proposals=0)
         self.use_motion_views = use_motion_views
-
-    def run(self, *args, **kwargs):
-        self.screen_episodes = []
-        return super().run(*args, **kwargs)
 
     def ask(self, frames, verify, deadline, private_dir):
         if verify:
@@ -56,30 +49,21 @@ class JointScreenPipeline(AtomicFactPipeline):
                 frames, private_dir.parent / ("screen-motion-" + uuid.uuid4().hex)
             )
         index = {"type": "integer", "enum": list(range(len(frames)))}
-        event = {
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "onset_index": index,
-                "last_active_index": index,
-                "continues_from_window_start": {"type": "boolean"},
-            },
-            "required": [
-                "onset_index",
-                "last_active_index",
-                "continues_from_window_start",
-            ],
-        }
-        observed_assessment = {
+        observed = {
             "type": "object",
             "additionalProperties": False,
             "properties": {
                 "state": {"type": "string", "enum": ["observed"]},
-                "visible_change": {"type": "string", "maxLength": 100},
-                "events": {"type": "array", "maxItems": 3, "items": event},
+                "visible_change": {"type": "string", "minLength": 1, "maxLength": 100},
+                "event_indices": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "uniqueItems": True,
+                    "items": index,
+                },
                 "overflow": {"type": "boolean"},
             },
-            "required": ["state", "visible_change", "events", "overflow"],
+            "required": ["state", "visible_change", "event_indices", "overflow"],
         }
         assessment = {
             "anyOf": [
@@ -91,7 +75,7 @@ class JointScreenPipeline(AtomicFactPipeline):
                     },
                     "required": ["state"],
                 },
-                observed_assessment,
+                observed,
             ]
         }
         schema = {
@@ -99,37 +83,6 @@ class JointScreenPipeline(AtomicFactPipeline):
             "additionalProperties": False,
             "properties": {
                 "visible_sequence": {"type": "string", "maxLength": 180},
-                "customer_area_state": {
-                    "type": "string",
-                    "enum": [
-                        "customer_visible",
-                        "fully_visible_empty",
-                        "not_fully_visible",
-                        "mixed",
-                        "not_applicable",
-                    ],
-                },
-                "activity_context": {
-                    "type": "string",
-                    "enum": [
-                        "handover",
-                        "ongoing_service",
-                        "internal_handling",
-                        "transition",
-                        "mixed",
-                        "unclear",
-                    ],
-                },
-                "worker_area_state": {
-                    "type": "string",
-                    "enum": [
-                        "at_station",
-                        "departed",
-                        "mixed",
-                        "unclear",
-                        "not_applicable",
-                    ],
-                },
                 "checks": {
                     "type": "object",
                     "additionalProperties": False,
@@ -138,38 +91,24 @@ class JointScreenPipeline(AtomicFactPipeline):
                 },
                 "visibility_limited": {"type": "boolean"},
             },
-            "required": [
-                "visible_sequence",
-                "customer_area_state",
-                "activity_context",
-                "worker_area_state",
-                "checks",
-                "visibility_limited",
-            ],
+            "required": ["visible_sequence", "checks", "visibility_limited"],
         }
         questions = {
             key: self.QUESTIONS.get(key, " / ".join(rule["predicates"].values()))
             for key, rule in self.registry.enabled.items()
         }
         prompt = (
-            "Describe the directly visible sequence, then answer every short visual-action question independently. "
-            "For each question, state=observed ONLY when that EXACT action actually occurs, including its stated direction and object constraints. "
-            "A different or opposite action does not satisfy the question, even if it is clearly visible. "
-            'If absent return only {"state":"absent"} for that question. If unobservable return only {"state":"unclear"}. '
-            "Only observed answers contain visible_change, events and overflow. Return compact JSON without indentation. "
-            "This is candidate screening, not a legal verdict. The question's visible action will be checked against legal conditions later. "
-            "Do not require unseen accounting, permission, participant identity or all legal conditions at screening. "
-            "A still pose or hypothetical possibility is not an observed action. An observed answer needs an actual source occurrence. "
-            "For EACH distinct occurrence satisfying the exact question select its FIRST supportable local onset_index and last_active_index. "
-            "Earlier context or preparatory motion is not yet support for the requested action. "
-            "If an action is already visibly in progress in the FIRST image and continues, set continues_from_window_start=true and onset_index=0. "
-            "A later new occurrence is separate, even if the question is the same. "
-            "Choose mixed context states whenever the relevant visible state changes in this interval. "
-            "Never infer customer absence from a cropped or occluded customer area. "
-            "Set overflow if more than three occurrences of one question need representation; do not silently truncate. "
-            "Questions="
-            + json.dumps(questions, separators=(",", ":"))
-            + "\nFull frames and auxiliary crops can share one source instant. Use full frames for context; a crop cannot establish absence outside it. Repeated times are views of one instant.\nSource indices="
+            "Describe directly visible changes, then answer EACH exact visual question independently. "
+            "This is candidate screening, not a legal verdict. Do not require unseen accounting, permission or all legal conditions. "
+            "state=observed means the EXACT requested action actually occurs, including its direction and object constraints. "
+            "A different/opposite action is absent for that question. If evidence is insufficient use unclear. "
+            "Absent/unclear answers contain only state. An observed answer needs actual event_indices, visible_change and overflow. "
+            "Each event index is the FIRST supplied image establishing the question's criterion for one distinct occurrence. "
+            "Do not select preceding context, the start of generic motion, or merely a person/object already present. "
+            "A second occurrence after the criterion resets needs its own index. A continuous occurrence is represented once. "
+            "If more than three occurrences of one question need representation set overflow=true; never silently truncate. "
+            "Do not infer identity, intent, authority or events outside the images. Use full frames for context; a crop cannot establish absence outside it. "
+            "Repeated source times are views of one instant. Return compact JSON.\nSource indices="
             + json.dumps(
                 [
                     {
@@ -184,93 +123,46 @@ class JointScreenPipeline(AtomicFactPipeline):
             )
             + "\nJSON="
             + json.dumps(schema, separators=(",", ":"))
+            + "\nExact questions="
+            + json.dumps(questions, separators=(",", ":"))
+            + "\nAn event is a witness of its EXACT question, not any visible activity."
         )
 
         def parse(value):
-            for key, result in value["checks"].items():
-                value["checks"][key] = dict(
-                    result,
-                    observed=result["state"] == "observed",
-                    unclear=result["state"] == "unclear",
-                    events=result.get("events", []),
-                    overflow=result.get("overflow", False),
-                )
             for result in value["checks"].values():
                 if (
-                    result["observed"] != bool(result["events"])
+                    result["state"] == "observed"
+                    and not result["event_indices"]
                     and not result["overflow"]
                 ):
-                    raise ValueError(
-                        "Exact-action decision must match its source occurrences"
-                    )
-                for item in result["events"]:
-                    if item["last_active_index"] < item["onset_index"] or (
-                        item["continues_from_window_start"]
-                        and frames[item["onset_index"]]["timestamp_sec"]
-                        != frames[0]["timestamp_sec"]
-                    ):
-                        raise ValueError("Inconsistent source occurrence interval")
+                    raise ValueError("Observed action requires a source witness")
             return value
 
         result = self._request(frames, prompt, schema, deadline, private_dir, parse)
-        fingerprint = tuple(
-            result[key]
-            for key in ("customer_area_state", "activity_context", "worker_area_state")
-        )
         limited = result["visibility_limited"]
         candidates = []
         for rule_id, assessment in result["checks"].items():
+            limited |= assessment["state"] == "unclear"
+            if assessment["state"] != "observed":
+                continue
             if assessment["overflow"]:
                 raise ProcessingError(
                     "RESOURCE_EXHAUSTED", "Joint visual event budget exceeded"
                 )
-            limited |= assessment["unclear"]
             rule = self.registry.enabled[rule_id]
-            for event in assessment["events"]:
+            for i in assessment["event_indices"]:
                 self.stage_counts["raw_joint_proposals"] += 1
-                first_view, last = (
-                    frames[event["onset_index"]],
-                    frames[event["last_active_index"]],
-                )
-                first = next(
+                view = frames[i]
+                original = next(
                     f
                     for f in source_frames
-                    if f["id"] == first_view.get("source_frame_id", first_view["id"])
-                )
-                previous = next(
-                    (
-                        e
-                        for e in reversed(self.screen_episodes)
-                        if e["rule"] == rule_id
-                        and e["context"] == fingerprint
-                        and e["end"] >= first["timestamp_sec"]
-                    ),
-                    None,
-                )
-                clear_context = not limited and not any(
-                    state in {"mixed", "unclear", "not_fully_visible"}
-                    for state in fingerprint
-                )
-                if (
-                    event["continues_from_window_start"]
-                    and previous is not None
-                    and clear_context
-                ):
-                    previous["end"] = max(previous["end"], last["timestamp_sec"])
-                    self.stage_counts["merged_visible_continuations"] += 1
-                    continue
-                self.screen_episodes.append(
-                    {
-                        "rule": rule_id,
-                        "context": fingerprint,
-                        "end": last["timestamp_sec"],
-                    }
+                    if f["id"] == view.get("source_frame_id", view["id"])
                 )
                 candidates.append(
                     ScreenCandidate(
                         rule_id=rule_id,
-                        event_frame_id=first["id"],
-                        frame_ids=[first["id"]],
+                        event_frame_id=original["id"],
+                        frame_ids=[original["id"]],
                         predicates={
                             key: True
                             for key in rule.get(

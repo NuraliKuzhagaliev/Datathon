@@ -107,3 +107,9 @@ def test_compact_states_preserve_only_observed_source_proposal(tmp_path):
     }
     (private / "generated.json").write_text(json.dumps(record))
     assert proposals(tmp_path) == ([2.7], 0, [])
+    compact = json.loads(record["output"])
+    compact["checks"]["TEST-A"].pop("events")
+    compact["checks"]["TEST-A"]["event_indices"] = [0]
+    record["output"] = json.dumps(compact)
+    (private / "generated.json").write_text(json.dumps(record))
+    assert proposals(tmp_path) == ([2.7], 0, [])
