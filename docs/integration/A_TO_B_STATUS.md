@@ -9,7 +9,7 @@ Updated 18 October 2026. This current snapshot supersedes historical maintenance
 | Keys/store | Original distinct operator/jury values and cases preserved in ignored runtime-data; enter keys locally, never in agent chat |
 | Model | Qwen3-VL-2B-Instruct pinned 89644892e4d85e24eaac8bacfd4f463576704203; BF16/SDPA, local files only |
 | Rules | Registry 2026-10-17.3, experimental paragraph 22 only; other candidates disabled |
-| Public site | cashproof-web.vercel.app still serves earlier static build; current public API is not ready |
+| Public site | cashproof-web.vercel.app serves the updated Git build; current public API is not ready |
 | Public routing | Old upstream dead. Two API/health replacement rewrites to range-journalism-louisiana-gym.trycloudflare.com are Draft, not published |
 | New web build | Prepared and scanned; 11 public assets plus config, 737,189 bytes. Existing Vercel project needs Git/CLI update, not a new Drop project |
 | Backend checks | Stable 28 passed / 13.14 s; separate experimental suite 13 passed / one optional-environment skip |
@@ -28,3 +28,9 @@ Current private full package: apps/desktop/dist/offline-032-audit/win-unpacked/C
 Local launch from the development repository uses ../../work/.venv/Scripts/python.exe tools/start_team_server.py --bundle releases/backend --ffmpeg releases/backend/bin/ffmpeg.exe. The launcher executes the bundled Python/model and preserves existing credentials. Do not run a second heavy GPU model alongside the service.
 
 The human authorized Vercel/Cloudflare video and X-API-Key transit; organizer acceptance is not recorded. Never show real case lists, frames, descriptions or reports to a cloud agent. Use synthetic cases for agent-visible work. Before jury submission, establish useful recognition, actual public access, independent-client verification, accepted transport, physical-disconnection execution and applicable license obligations. A successful health check is not model accuracy.
+
+## Published static build, 18 October 2026
+
+The existing production alias now serves the Git build from a1fa9d2a44a3c5c5953302460a8d75d6da09953e, deployment82s7f2A3sLFQg8eXEugSp9UG4zaR (Ready,18s). All11 public files (736,036bytes) were fetched anonymously and matched the corrected Windows build byte-for-byte; security headers and absence of actual credential values were checked. Public login rendered without accessing private cases. Explicit LF attributes preserve identical static/license bytes on Windows and Linux. The earlier prepared Drop directory is retained as historical and is not the final public fingerprint.
+
+The owner prioritizes an accurate single service. API/health are two technical paths of that one service, not competing models. The latest response did not approve routing Publish; both rewrites remain Draft while recognition quality is unresolved. The local portable API/tunnel are ready, but current public API readiness is false. No claim of universally correct diagnosis is made.

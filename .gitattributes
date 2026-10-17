@@ -6,3 +6,7 @@ infra/** text eol=lf
 docs/backend/** text eol=lf
 docs/integration/** text eol=lf
 assets/rules/registry.json text eol=lf
+apps/web/public/fonts/OFL.txt text eol=lf
+apps/web/index.html text eol=lf
+apps/web/public/fonts/fonts.css text eol=lf
+apps/web/public/mark.svg text eol=lf
