@@ -36,6 +36,9 @@ def main():
     p.add_argument("--experimental-trigger-screen", action="store_true")
     p.add_argument("--experimental-atomic-verifier", action="store_true")
     p.add_argument("--experimental-joint-screen", action="store_true")
+    p.add_argument(
+        "--experimental-screen-views", choices=["full", "paired"], default="full"
+    )
     p.add_argument("--experimental-gguf-runtime", type=Path)
     p.add_argument("--gguf-provision-receipt", type=Path)
     p.add_argument("--gguf-conversion-receipt", type=Path)
@@ -92,6 +95,10 @@ def main():
     ):
         raise ValueError(
             "Joint screen requires explicit GGUF and independent final verifier"
+        )
+    if a.experimental_screen_views != "full":
+        raise ValueError(
+            "Paired temporal views failed direction controls; unavailable for private evaluation"
         )
     if (
         a.experimental_precision != "nf4" or a.experimental_screen_pixels != 65536
@@ -227,9 +234,7 @@ def main():
             from joint_screen import JointScreenPipeline
 
             pipeline_class = JointScreenPipeline
-            pipeline = pipeline_class(
-                model, registry, a.max_candidates, use_motion_views=True
-            )
+            pipeline = pipeline_class(model, registry, a.max_candidates)
         else:
             pipeline = pipeline_class(model, registry, a.max_candidates)
     elif a.experimental_compact:

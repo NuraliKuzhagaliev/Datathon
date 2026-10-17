@@ -109,7 +109,9 @@ def test_auxiliary_crop_onset_maps_back_to_original_source_frame(registry, tmp_p
             {"id": f"original-{i}", "timestamp_sec": i * 0.5, "path": str(path)}
         )
     pipeline = JointScreenPipeline(
-        Responses([[event(start=1, end=7, continued=True)]]), registry
+        Responses([[event(start=1, end=7, continued=True)]]),
+        registry,
+        use_motion_views=True,
     )
     output = pipeline.ask(source, None, time.time() + 60, tmp_path / "private")
     assert output.events[0].event_frame_id == "original-0"

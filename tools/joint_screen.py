@@ -12,7 +12,7 @@ from cashproof.reproducibility import configuration
 
 
 class JointScreenPipeline(AtomicFactPipeline):
-    def __init__(self, model, registry, max_candidates=32, use_motion_views=True):
+    def __init__(self, model, registry, max_candidates=32, use_motion_views=False):
         super().__init__(model, registry, max_candidates)
         model.runtime_configuration.update(
             experimental_screening="short joint visible-action screen v1; explicit visual-context continuation merging",
