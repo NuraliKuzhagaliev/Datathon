@@ -17,6 +17,7 @@ class Responses:
         checks = {
             key: {
                 "visible_change": "Generated test action",
+                "observed": False,
                 "events": [],
                 "unclear": False,
                 "overflow": False,
@@ -24,6 +25,7 @@ class Responses:
             for key in output_schema["properties"]["checks"]["required"]
         }
         checks["TEST-A"]["events"] = self.events.pop(0)
+        checks["TEST-A"]["observed"] = bool(checks["TEST-A"]["events"])
         return json.dumps(
             {
                 "visible_sequence": "Generated sequence",

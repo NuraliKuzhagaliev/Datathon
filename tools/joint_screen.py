@@ -15,7 +15,7 @@ class JointScreenPipeline(AtomicFactPipeline):
     def __init__(self, model, registry, max_candidates=32, use_motion_views=False):
         super().__init__(model, registry, max_candidates)
         model.runtime_configuration.update(
-            experimental_screening="short joint visible-action screen v1; explicit visual-context continuation merging",
+            experimental_screening="short joint visible-action screen v2; explicit exact-question decision and visual-context continuation merging",
             joint_screen_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             screening_window_sec=7,
             screening_overlap_sec=1,
@@ -72,11 +72,12 @@ class JointScreenPipeline(AtomicFactPipeline):
             "additionalProperties": False,
             "properties": {
                 "visible_change": {"type": "string", "maxLength": 100},
+                "observed": {"type": "boolean"},
                 "events": {"type": "array", "maxItems": 3, "items": event},
                 "unclear": {"type": "boolean"},
                 "overflow": {"type": "boolean"},
             },
-            "required": ["visible_change", "events", "unclear", "overflow"],
+            "required": ["visible_change", "observed", "events", "unclear", "overflow"],
         }
         schema = {
             "type": "object",
@@ -137,10 +138,14 @@ class JointScreenPipeline(AtomicFactPipeline):
         }
         prompt = (
             "Describe the directly visible sequence, then answer every short visual-action question independently. "
-            "This is candidate screening, not a legal verdict. Ordinary actions may be proposed and will be checked later. "
+            "For each question, observed=true ONLY when that EXACT action actually occurs, including its stated direction and object constraints. "
+            "A different or opposite action does not satisfy the question, even if it is clearly visible. "
+            "If absent or unobservable, observed=false and events=[]; if unobservable also set unclear=true. "
+            "This is candidate screening, not a legal verdict. The question's visible action will be checked against legal conditions later. "
             "Do not require unseen accounting, permission, participant identity or all legal conditions at screening. "
             "A still pose or hypothetical possibility is not an observed action. An empty events list means no visible action for that question. "
-            "For EACH distinct occurrence select its first supportable local onset_index and last_active_index. "
+            "For EACH distinct occurrence satisfying the exact question select its FIRST supportable local onset_index and last_active_index. "
+            "Earlier context or preparatory motion is not yet support for the requested action. "
             "If an action is already visibly in progress in the FIRST image and continues, set continues_from_window_start=true and onset_index=0. "
             "A later new occurrence is separate, even if the question is the same. "
             "Choose mixed context states whenever the relevant visible state changes in this interval. "
@@ -167,6 +172,13 @@ class JointScreenPipeline(AtomicFactPipeline):
 
         def parse(value):
             for result in value["checks"].values():
+                if (
+                    result["observed"] != bool(result["events"])
+                    and not result["overflow"]
+                ):
+                    raise ValueError(
+                        "Exact-action decision must match its source occurrences"
+                    )
                 for item in result["events"]:
                     if item["last_active_index"] < item["onset_index"] or (
                         item["continues_from_window_start"]
