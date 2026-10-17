@@ -219,6 +219,15 @@ def main():
                 raise RuntimeError(
                     "Synthetic positive/negative fact screen failed before private evaluation"
                 )
+        if a.experimental_gguf_runtime:
+            from source_time_controls import verify as verify_source_time
+
+            if not verify_source_time(
+                model, a.output / "synthetic-source-time", type(pipeline)
+            )["passed"]:
+                raise RuntimeError(
+                    "Generated end-to-end source-time control failed before private evaluation"
+                )
         model.technical_calls.clear()
     if a.freeze_from:
         frozen = json.loads(a.freeze_from.read_text(encoding="utf-8"))
@@ -240,6 +249,7 @@ def main():
     time_errors = []
     ambiguous = 0
     failure_codes = defaultdict(int)
+    failure_types = defaultdict(int)
     failure_latency = []
     evidence_frames = 0
     selected = [rs for rs in by_hash.values() if rs[0]["split"] == a.split]
@@ -296,6 +306,7 @@ def main():
                 )
         except Exception as error:
             failures += 1
+            failure_types[type(error).__name__] += 1
             failure_latency.append(time.time() - start)
             oom = torch_backend is not None and isinstance(
                 error, torch_backend.OutOfMemoryError
@@ -307,7 +318,13 @@ def main():
                 torch_backend.cuda.empty_cache()
             failure_codes[code] += 1
             (directory / "failure.json").write_text(
-                json.dumps({"technical_failure": True, "error_code": code}),
+                json.dumps(
+                    {
+                        "technical_failure": True,
+                        "error_code": code,
+                        "error_type": type(error).__name__,
+                    }
+                ),
                 encoding="utf-8",
             )
         print(
@@ -339,6 +356,7 @@ def main():
         "completed": completed,
         "failed": failures,
         "failure_codes": dict(failure_codes),
+        "failure_types": dict(failure_types),
         "failure_latency_sec": failure_latency,
         "positive_unique_denominator": sum(int(rs[0]["label"]) for rs in selected),
         "negative_unique_denominator": sum(1 - int(rs[0]["label"]) for rs in selected),

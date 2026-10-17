@@ -123,6 +123,8 @@ class GGUFModel:
             "image_max_tokens": 256,
             "cache_prompt": True,
             "context_shift": False,
+            "attention": "llama.cpp CUDA Flash Attention",
+            "json_grammar": "llama.cpp b11715 JSON-schema grammar",
         }
         self.manifest = manifest | {
             "experimental_recipe": dict(self.runtime_configuration)

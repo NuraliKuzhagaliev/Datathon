@@ -5,10 +5,19 @@ from collections import Counter, defaultdict
 import json
 from pathlib import Path
 
-from fact_pipeline import FACTS
+from fact_pipeline import FACTS, TriggerFactPipeline
 
 
 def score(run):
+    public_registry = json.loads(
+        (Path(__file__).resolve().parents[1] / "assets/rules/registry.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    known_predicates = {
+        rule["public"]["rule_id"]: set(rule["predicates"])
+        for rule in public_registry["rules"]
+    }
     scene = Counter()
     facts = defaultdict(Counter)
     verification = defaultdict(Counter)
@@ -44,6 +53,10 @@ def score(run):
                 counts["complete_context"] += value.get("complete_context") is True
                 counts["exclusion_present"] += value.get("exclusion_present") is True
                 predicates = value["predicates"]
+                for key in known_predicates.get(rule_id, set()):
+                    counts["unsupported_predicate:" + key] += (
+                        predicates.get(key) is not True
+                    )
                 all_supported = bool(predicates) and all(
                     v is True for v in predicates.values()
                 )
@@ -55,10 +68,13 @@ def score(run):
                     and value.get("exclusion_present") is False
                 )
             elif "observed" in value:
-                rule_id = next(
-                    (key for key, question in FACTS.items() if question in prompt), None
-                )
-                if rule_id:
+                rule_ids = {
+                    key
+                    for questions in (FACTS, TriggerFactPipeline.QUESTIONS)
+                    for key, question in questions.items()
+                    if question in prompt
+                }
+                for rule_id in rule_ids:
                     counts = facts[rule_id]
                     counts["calls"] += 1
                     counts["observed"] += value.get("observed") is True
