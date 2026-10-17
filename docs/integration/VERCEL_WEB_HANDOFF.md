@@ -1,5 +1,7 @@
 # Vercel frontend handoff
 
+**Maintenance snapshot, 17 October 2026:** local API paused with user approval for GPU evaluation. The old Cloudflare upstream below no longer resolves. Replacement `range-journalism-louisiana-gym.trycloudflare.com` is prepared in Vercel Draft, not published. Do not use historical successful receipts as current readiness. [Common audit](PROJECT_STATUS.md).
+
 Public production URL: https://cashproof-web.vercel.app . Dashboard: https://vercel.com/lord-b46e/cashproof-web . Account nuralikuzhagaliev, team Lord, Hobby.
 
 Published 17 October 2026 using Vercel Drop to Deploy: only the freshly built static frontend, nine public assets plus deployment configuration, 672,855 bytes total. Frontend source e03e5a96324fd36afd2b85872a5f7d3c2806971d, integrated at 0549cf420511402c6d8a01f292917828b339d3f1. The build used Node 24.19.0 / pnpm 11.25.0. No B-owned source was changed. Main remains 322afabd1daebc15d25846ac5fd4f62cd1c8c3d0.
