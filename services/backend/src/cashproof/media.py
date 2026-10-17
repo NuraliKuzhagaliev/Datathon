@@ -35,6 +35,8 @@ def run(args, deadline, *, loglevel="error"):
                 "-xerror",
                 "-loglevel",
                 loglevel,
+                "-protocol_whitelist",
+                "file,pipe",
                 *args,
             ],
             capture_output=True,
@@ -51,7 +53,15 @@ def run(args, deadline, *, loglevel="error"):
 
 def validate_container(path: Path):
     try:
-        with av.open(str(path)) as container:
+        with av.open(
+            str(path),
+            format="mov",
+            options={
+                "protocol_whitelist": "file",
+                "enable_drefs": "0",
+                "use_absolute_path": "0",
+            },
+        ) as container:
             if "mov" not in container.format.name or len(container.streams.video) != 1:
                 raise ValueError()
             stream = container.streams.video[0]
@@ -91,7 +101,16 @@ def decode_timeline(path: Path, deadline: float):
     validate_container(path)
     pts, last_duration = [], 0.0
     try:
-        with av.open(str(path), options={"err_detect": "explode"}) as container:
+        with av.open(
+            str(path),
+            format="mov",
+            options={
+                "err_detect": "explode",
+                "protocol_whitelist": "file",
+                "enable_drefs": "0",
+                "use_absolute_path": "0",
+            },
+        ) as container:
             stream = container.streams.video[0]
             width, height = stream.width, stream.height
             for frame in container.decode(stream):
@@ -159,6 +178,8 @@ def extract(
             "-copyts",
             "-err_detect",
             "explode",
+            "-f",
+            "mov",
             "-i",
             str(path),
             "-map",
@@ -215,6 +236,8 @@ def preview(path: Path, destination: Path, timeline: Timeline, deadline: float):
         [
             "-err_detect",
             "explode",
+            "-f",
+            "mov",
             "-i",
             str(path),
             "-map",
