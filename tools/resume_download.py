@@ -21,7 +21,7 @@ def main():
     p.add_argument("--sha256", required=True)
     p.add_argument("--workers", type=int, default=4)
     a = p.parse_args()
-    if not a.url.startswith("https://") or not 1 <= a.workers <= 4:
+    if not a.url.startswith("https://") or not 1 <= a.workers <= 16:
         raise ValueError("Invalid download configuration")
     a.partial.parent.mkdir(parents=True, exist_ok=True)
     offset = a.partial.stat().st_size if a.partial.exists() else 0

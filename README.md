@@ -2,7 +2,7 @@
 
 Local video review for possible cashier-procedure violations, with source-linked evidence and a separate human decision.
 
-**Status:** real local GPU upload-to-result works; backend 0.2.0 processed the longest supplied video in 173.01 seconds. Twenty backend tests pass. Backend 0.3.0 completed five queued four-second synthetic uploads in 4.85–9.94 seconds. Detection quality is currently inadequate: a four-video development sample missed both positives. Full development evaluation and private category review are in progress. Portable runtime qualification, web/desktop integration and public HTTPS remain gates in [verification](docs/integration/verification.md). This checkout is not a completed competition submission.
+**Status:** real local GPU upload-to-result works; backend 0.2.0 processed the longest supplied video in 173.01 seconds. Twenty-one backend tests pass. Backend 0.3.0 completed five queued four-second synthetic uploads in 4.85–9.94 seconds. Detection quality is inadequate: the full development run missed all 15 positives (27 completed, one technical failure out of 28). Local automatic review and model/rule experiments continue. Portable runtime qualification, web/desktop integration and public HTTPS remain gates in [verification](docs/integration/verification.md). This checkout is not a completed competition submission.
 
 ## Backend setup
 
@@ -37,7 +37,7 @@ The backend includes a SQLite WAL queue, bounded admission, a supervised local m
 
 ## Rules, privacy and evaluation
 
-Only Resolution No. 231 §22 is enabled as an experimental detector. Five other researched candidates are disabled pending local validation. See [legal sources and scope](docs/backend/legal-sources.md). The service does not identify people, infer intent or permissions, verify ledger entries, analyze audio or pronounce guilt.
+Only Resolution No. 231 §22 is enabled as an experimental detector. Six other researched candidates are disabled pending local validation. See [legal sources and scope](docs/backend/legal-sources.md). The service does not identify people, infer intent or permissions, verify ledger entries, analyze audio or pronounce guilt.
 
 `private-data`, `runtime-data`, `models`, keys and releases are ignored by Git. Dataset filenames, hashes and labels are used for integrity, grouping and evaluation, never prediction. The local reviewer returned a reviewed split of 28 development and 12 validation unique videos. Both times on the duplicate positive video are preserved. Only aggregate evaluation output belongs in coding-agent conversations.
 

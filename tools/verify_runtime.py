@@ -92,7 +92,12 @@ def main():
             "CASHPROOF_MODE": "offline",
             "CASHPROOF_MAX_PENDING": str(a.concurrency),
             "CASHPROOF_MODEL_DIR": str(
-                (root / "models/Qwen3-VL-2B-Instruct")
+                (
+                    root
+                    / launch_env.get(
+                        "CASHPROOF_MODEL_DIR", "models/Qwen3-VL-2B-Instruct"
+                    )
+                )
                 if a.bundle
                 else a.model_dir.resolve()
             ),

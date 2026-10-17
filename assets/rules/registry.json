@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.2",
+  "version": "2026-10-17.3",
   "rules": [
     {
       "public": {
@@ -91,6 +91,41 @@
       "context": "Полная видимая последовательность до и после события; проверка добросовестного объяснения. Не выводить отсутствие из окклюзии.",
       "snapshot": "sources/V1900019680-2026-10-17.ax.txt",
       "template": "Возможный признак несоблюдения пункта 21 Правил № 231. Требуется проверка человеком с учетом контекста; это не юридическое заключение."
+    },
+    {
+      "public": {
+        "rule_id": "NB231-20-STORAGE",
+        "display_name": "Возможное хранение ранее принятых денег вне защитного устройства",
+        "document_title": "Правила осуществления кассовых операций и операций по инкассации банкнот, монет и ценностей в банках второго уровня, филиалах банков-нерезидентов Республики Казахстан, Национальном операторе почты и юридических лицах, исключительной деятельностью которых является инкассация банкнот, монет и ценностей (постановление НБРК от 29.11.2019 № 231)",
+        "source_url": "https://adilet.zan.kz/rus/docs/V1900019680",
+        "clause": "пункт 20",
+        "revision": "Консолидированный текст Adilet, проверен 17.10.2026; содержит поправки 30.06.2026; выбранные пункты без пометки об изменении.",
+        "effective_date": "2020-01-01",
+        "applicability": "Ранее принятые деньги после завершения предыдущего приема во время следующего приема; текущие деньги клиента на рабочем месте допускаются.",
+        "exclusions": [
+          "Деньги текущего обслуживаемого клиента.",
+          "Внутренняя упаковка, пересчет или сдача денег.",
+          "Границы операций, происхождение денег или место хранения не видны непрерывно.",
+          "Нельзя установить запирание устройства по его внешнему виду; наличие денег внутри устройства не доказывает нарушение."
+        ],
+        "enabled": false,
+        "source_sha256": "287c2d76f266c49ef0261719a3bb9722f0fb77499b78632b11390fb1239d6b94"
+      },
+      "predicates": {
+        "earlier_receipt_closed": "Visible completion of an earlier cash receipt with continuous object tracking, without identity or ledger inference.",
+        "same_cash_exposed": "The same previously received cash remains visibly outside any storage device.",
+        "next_receipt_ongoing": "A subsequent incoming-cash service sequence establishes that these are prior funds, not the current client's working cash.",
+        "not_internal_handling": "Visible context excludes internal packing, recount, transfer or ordinary handling of current client funds."
+      },
+      "candidate_triggers": [
+        "earlier_receipt_closed",
+        "same_cash_exposed",
+        "next_receipt_ongoing",
+        "not_internal_handling"
+      ],
+      "context": "Полная видимая последовательность до и после события; проверка добросовестного объяснения. Не выводить отсутствие из окклюзии.",
+      "snapshot": "sources/V1900019680-2026-10-17.ax.txt",
+      "template": "Возможный признак несоблюдения пункта 20 Правил № 231. Требуется проверка человеком с учетом контекста; это не юридическое заключение."
     },
     {
       "public": {

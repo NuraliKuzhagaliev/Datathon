@@ -110,6 +110,39 @@ def test_invented_frames_fail_after_one_repair(clip, tmp_path, registry):
     assert model.calls == 2
 
 
+def test_assessment_screening_preserves_multiple_verified_types(
+    clip, tmp_path, registry
+):
+    class Assessor(ScriptedSyntheticModel):
+        runtime_configuration = {"screening_mode": "assessments"}
+
+        def infer(self, frames, prompt, deadline, output_schema=None):
+            if "Candidate=" in prompt:
+                return super().infer(frames, prompt, deadline, output_schema)
+            self.calls += 1
+            return json.dumps(
+                {
+                    "observed_activity": "Synthetic test pattern.",
+                    "assessments": {
+                        rule: {
+                            "trigger_possible": True,
+                            "event_frame_id": frames[0]["id"],
+                            "frame_ids": [frames[0]["id"]],
+                        }
+                        for rule in ("TEST-A", "TEST-B")
+                    },
+                    "visibility_limited": False,
+                }
+            )
+
+    result, timeline = Pipeline(Assessor(), registry).run(
+        clip, tmp_path, "a" * 32, time.time() + 60, lambda **kwargs: None
+    )
+    validate_result(result["model_result"], timeline.duration)
+    assert len(result["events"]) == 2
+    assert {event["type"] for event in result["events"]} == {"TEST-A", "TEST-B"}
+
+
 def test_normal_context_without_action_does_not_trigger_dense_verification(
     clip, tmp_path, registry
 ):
@@ -133,7 +166,7 @@ def test_normal_context_without_action_does_not_trigger_dense_verification(
                             "event_frame_id": frames[0]["id"],
                             "frame_ids": [frames[0]["id"]],
                             "applicable": True,
-                            "predicates": {"context": True, "action": False},
+                            "predicates": {"action": False},
                         }
                     ],
                     "visibility_limited": False,
@@ -153,6 +186,23 @@ def test_full_window_coverage():
         plan = list(windows(duration))
         assert plan[0][0] == 0 and plan[-1][1] == duration
         assert all(b[0] <= a[1] for a, b in zip(plan, plan[1:]))
+
+
+def test_more_than_100_exact_frame_indices_on_current_ffmpeg(tmp_path):
+    from synthetic_clip import create
+
+    source = create(tmp_path / "long-pattern.mov", duration=10)
+    timeline = media.decode_timeline(source, time.time() + 30)
+    assert len(timeline.pts) > 100
+    frames = media.extract(
+        source,
+        timeline,
+        list(range(len(timeline.pts))),
+        tmp_path / "all-frames",
+        time.time() + 30,
+    )
+    assert len(frames) == len(timeline.pts)
+    assert [f["timestamp_sec"] for f in frames.values()] == timeline.pts
 
 
 def test_corrupt_and_deadline(tmp_path):

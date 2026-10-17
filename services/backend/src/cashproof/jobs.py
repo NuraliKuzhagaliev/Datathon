@@ -114,8 +114,9 @@ class Store:
             detail = json.loads(row["detail"])
             detail["elapsed_sec"] = max(
                 0,
-                (row["updated"] if row["state"] != "processing" else time.time())
-                - row["created"],
+                detail["elapsed_sec"]
+                if row["state"] != "processing"
+                else time.time() - row["created"],
             )
             reviews = {
                 r["event_id"]: json.loads(r["value"])
@@ -137,7 +138,7 @@ class Store:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
-                "SELECT detail,state FROM jobs WHERE id=?", (job,)
+                "SELECT detail,state,created FROM jobs WHERE id=?", (job,)
             ).fetchone()
             if row is None:
                 raise KeyError(job)
@@ -147,12 +148,15 @@ class Store:
             ):
                 raise ValueError("Automated result is immutable")
             value.update(changes)
+            updated = time.time()
+            if row["state"] == "processing" and value["status"] != "processing":
+                value["elapsed_sec"] = max(0, updated - row["created"])
             db.execute(
                 "UPDATE jobs SET detail=?,state=?,updated=? WHERE id=?",
                 (
                     json.dumps(value, ensure_ascii=False, allow_nan=False),
                     value["status"],
-                    time.time(),
+                    updated,
                     job,
                 ),
             )

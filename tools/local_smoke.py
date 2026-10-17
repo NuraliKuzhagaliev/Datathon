@@ -15,6 +15,7 @@ def main():
     p.add_argument("--video", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--deny-network", action="store_true")
+    p.add_argument("--experimental-nf4", action="store_true")
     a = p.parse_args()
     a.output.mkdir(parents=True, exist_ok=True)
     force_offline()
@@ -30,7 +31,12 @@ def main():
         socket.socket.connect_ex = denied
         socket.getaddrinfo = denied
     start = time.perf_counter()
-    model = LocalQwen(a.model_dir)
+    if a.experimental_nf4:
+        from candidate_model import CandidateModel
+
+        model = CandidateModel(a.model_dir)
+    else:
+        model = LocalQwen(a.model_dir)
     load = time.perf_counter() - start
     timeline = decode_timeline(a.video, time.time() + 120)
     frames = extract(

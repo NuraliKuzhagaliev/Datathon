@@ -52,6 +52,7 @@ class Registry:
                 "candidate_triggers": v.get(
                     "candidate_triggers", list(v["predicates"])
                 ),
+                "candidate_trigger_mode": v.get("candidate_trigger_mode", "any"),
                 "context": v["context"],
                 "exclusions": v["public"]["exclusions"],
             }

@@ -56,6 +56,25 @@ entries = [
         False,
     ),
     (
+        "NB231-20-STORAGE",
+        "Возможное хранение ранее принятых денег вне защитного устройства",
+        20,
+        "Ранее принятые деньги после завершения предыдущего приема во время следующего приема; текущие деньги клиента на рабочем месте допускаются.",
+        {
+            "earlier_receipt_closed": "Visible completion of an earlier cash receipt with continuous object tracking, without identity or ledger inference.",
+            "same_cash_exposed": "The same previously received cash remains visibly outside any storage device.",
+            "next_receipt_ongoing": "A subsequent incoming-cash service sequence establishes that these are prior funds, not the current client's working cash.",
+            "not_internal_handling": "Visible context excludes internal packing, recount, transfer or ordinary handling of current client funds.",
+        },
+        [
+            "Деньги текущего обслуживаемого клиента.",
+            "Внутренняя упаковка, пересчет или сдача денег.",
+            "Границы операций, происхождение денег или место хранения не видны непрерывно.",
+            "Нельзя установить запирание устройства по его внешнему виду; наличие денег внутри устройства не доказывает нарушение.",
+        ],
+        False,
+    ),
+    (
         "NB231-24",
         "Осмотр целостности и пломб сумки",
         24,
@@ -125,7 +144,8 @@ for rule_id, name, clause, applicability, predicates, exclusions, enabled in ent
     )
 (ROOT / "assets/rules/registry.json").write_text(
     json.dumps(
-        {"version": "2026-10-17.2", "rules": rules}, ensure_ascii=False, indent=2
+        {"version": "2026-10-17.3", "rules": rules}, ensure_ascii=False, indent=2
     ),
     encoding="utf-8",
+    newline="\n",
 )

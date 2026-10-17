@@ -28,7 +28,14 @@ def main():
     p.add_argument("--model-dir", type=Path, required=True)
     p.add_argument("--rules", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--verify-grounding", action="store_true")
+    p.add_argument("--max-candidates", type=int, default=8)
     p.add_argument("--split", choices=["development", "validation"], required=True)
+    p.add_argument(
+        "--experimental-nf4",
+        action="store_true",
+        help="Development-only isolated adapter; not production qualification",
+    )
     p.add_argument(
         "--max-videos",
         type=int,
@@ -40,6 +47,8 @@ def main():
         help="Required for validation: completed development aggregate with the exact frozen configuration",
     )
     a = p.parse_args()
+    if a.experimental_nf4 and a.split != "development":
+        raise ValueError("Experimental adapter cannot open validation")
     if a.split == "validation" and not a.freeze_from:
         raise ValueError(
             "Validation requires --freeze-from with the frozen development configuration"
@@ -70,9 +79,25 @@ def main():
     if any(len({r["label"] for r in rs}) > 1 for rs in by_hash.values()):
         raise ValueError("Conflicting binary labels")
     force_offline()
-    model = LocalQwen(a.model_dir)
+    if a.experimental_nf4:
+        from candidate_model import CandidateModel
+
+        model = CandidateModel(a.model_dir)
+    else:
+        model = LocalQwen(a.model_dir)
+    if a.verify_grounding:
+        from visual_grounding import verify
+
+        if not verify(model, a.output / "synthetic-grounding")[
+            "passed_number_color_controls"
+        ]:
+            raise RuntimeError(
+                "Synthetic visual grounding failed before private evaluation"
+            )
     registry = Registry(a.rules)
-    pipeline = Pipeline(model, registry)
+    if not 1 <= a.max_candidates <= 32:
+        raise ValueError("Candidate budget must be between 1 and 32")
+    pipeline = Pipeline(model, registry, a.max_candidates)
     if a.freeze_from:
         frozen = json.loads(a.freeze_from.read_text(encoding="utf-8"))
         if frozen.get("partial_evaluation") or frozen.get("split") != "development":
@@ -142,7 +167,12 @@ def main():
         except Exception as error:
             failures += 1
             failure_latency.append(time.time() - start)
-            code = getattr(error, "code", "PROCESSING_FAILED")
+            oom = isinstance(error, model.torch.OutOfMemoryError)
+            code = getattr(
+                error, "code", "RESOURCE_EXHAUSTED" if oom else "PROCESSING_FAILED"
+            )
+            if oom:
+                model.torch.cuda.empty_cache()
             failure_codes[code] += 1
             (directory / "failure.json").write_text(
                 json.dumps({"technical_failure": True, "error_code": code}),
@@ -209,7 +239,9 @@ def main():
         "note": "Video labels provide neither event-type ground truth nor full event intervals. No generalization claim.",
     }
     (out / "aggregate.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
-    print(json.dumps(metrics))
+    summary = {key: value for key, value in metrics.items() if key != "configuration"}
+    summary["configuration_sha256"] = pipeline.configuration["configuration_sha256"]
+    print(json.dumps(summary))
 
 
 if __name__ == "__main__":

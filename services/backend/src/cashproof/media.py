@@ -143,8 +143,17 @@ def extract(
     indices = sorted(set(indices))
     if not indices or indices[-1] >= len(timeline.pts) or indices[0] < 0:
         raise ValueError("Invalid frame index")
+
     # select is evaluated before any rate conversion. FFmpeg applies MOV rotation.
-    selected = "+".join(f"eq(n\\,{i})" for i in indices)
+    def selection_tree(values):
+        if len(values) == 1:
+            return f"eq(n\\,{values[0]})"
+        middle = len(values) // 2
+        return f"({selection_tree(values[:middle])}+{selection_tree(values[middle:])})"
+
+    # A flat sum builds a deep expression tree and newer FFmpeg rejects >~100
+    # selected frames. Balanced sums preserve exact indices with logarithmic depth.
+    selected = selection_tree(indices)
     result = run(
         [
             "-copyts",

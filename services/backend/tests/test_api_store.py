@@ -114,6 +114,9 @@ def test_review_export_original_immutable(client, clip, registry):
     )
     store.update(job, **detail, status="done", stage="complete", progress_percent=100)
     original = client.get(f"/api/v1/jobs/{job}", headers=OP).json()
+    completed_elapsed = store.get(job)["elapsed_sec"]
+    store.update(job, media_ready=True, time_map=[])
+    assert store.get(job)["elapsed_sec"] == completed_elapsed
     event = detail["events"][0]["event_id"]
     response = client.put(
         f"/api/ui/cases/{job}/reviews/{event}",

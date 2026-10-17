@@ -51,8 +51,16 @@ def main():
     manifest = json.loads(
         (a.model_dir / "cashproof-manifest.json").read_text(encoding="utf-8")
     )
+    model_name = manifest["repo_id"].split("/")[-1]
+    if model_name not in {"Qwen3-VL-2B-Instruct", "Qwen3-VL-4B-Instruct"}:
+        raise ValueError("Unsupported pinned model family")
     for file in manifest["files"]:
-        path = a.model_dir / file["path"]
+        path = (a.model_dir / file["path"]).resolve()
+        if (
+            not path.is_relative_to(a.model_dir.resolve())
+            or Path(file["path"]).is_absolute()
+        ):
+            raise ValueError("Unsafe model manifest path")
         digest = digest_file(path)
         if digest != file["sha256"]:
             raise RuntimeError("Model checksum mismatch")
@@ -120,10 +128,15 @@ def main():
         ignore=shutil.ignore_patterns("fixtures", "build_contract.py"),
     )
     copytree(ROOT / "assets/rules", a.destination / "assets/rules")
-    copytree(
-        a.model_dir,
-        a.destination / "models/Qwen3-VL-2B-Instruct",
-        ignore=shutil.ignore_patterns(".cache", ".gitattributes"),
+    model_destination = a.destination / "models" / model_name
+    model_destination.mkdir(parents=True)
+    for item in manifest["files"]:
+        target = model_destination / item["path"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        link_or_copy(a.model_dir / item["path"], target)
+    link_or_copy(
+        a.model_dir / "cashproof-manifest.json",
+        model_destination / "cashproof-manifest.json",
     )
     (a.destination / "bin").mkdir()
     link_or_copy(a.ffmpeg, a.destination / "bin/ffmpeg.exe")
@@ -161,7 +174,7 @@ def main():
     (notices / "README.txt").write_text(
         "Internal team release candidate. Python's license is python/LICENSE.txt; "
         "third-party package notices remain in python/Lib/site-packages. "
-        "The Qwen model card is models/Qwen3-VL-2B-Instruct/README.md (Apache-2.0). "
+        f"The Qwen model card is models/{model_name}/README.md (Apache-2.0). "
         "FFmpeg license, build details and source revision are included here. "
         "A source revision link alone is not a complete corresponding-source distribution. "
         "Review FFmpeg and bundled third-party redistribution obligations before public redistribution.\n",
@@ -176,7 +189,7 @@ def main():
             "PYTHONPATH": "app",
             "PYTHONNOUSERSITE": "1",
             "PYTHONDONTWRITEBYTECODE": "1",
-            "CASHPROOF_MODEL_DIR": "models/Qwen3-VL-2B-Instruct",
+            "CASHPROOF_MODEL_DIR": f"models/{model_name}",
             "CASHPROOF_RULES": "assets/rules/registry.json",
             "CASHPROOF_FFMPEG": "bin/ffmpeg.exe",
             "HF_HUB_OFFLINE": "1",
@@ -214,6 +227,11 @@ def main():
                 "source_commit": subprocess.check_output(
                     ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
                 ).strip(),
+                "source_dirty": bool(
+                    subprocess.check_output(
+                        ["git", "status", "--porcelain"], cwd=ROOT, text=True
+                    ).strip()
+                ),
                 "note": "Assembly is not proof of a qualified offline launch.",
             },
             indent=2,

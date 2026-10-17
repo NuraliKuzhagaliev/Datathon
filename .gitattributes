@@ -1,0 +1,8 @@
+README.md text eol=lf
+.env.example text eol=lf
+services/backend/** text eol=lf
+tools/** text eol=lf
+infra/** text eol=lf
+docs/backend/** text eol=lf
+docs/integration/** text eol=lf
+assets/rules/registry.json text eol=lf
