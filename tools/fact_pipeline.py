@@ -23,6 +23,7 @@ FACTS = {
 class FactPipeline(CompactPipeline):
     QUESTIONS = FACTS
     REUSE_QUESTIONS = False
+    DESCRIBE_ACTION = False
     SCREEN_VERSION = "visual inventory then independent short action questions v2"
 
     def __init__(self, model, registry, max_candidates=8):
@@ -98,6 +99,12 @@ class FactPipeline(CompactPipeline):
             },
             "required": ["observed", "indices", "visibility_limited", "overflow"],
         }
+        if self.DESCRIBE_ACTION:
+            schema["properties"] = {
+                "visible_change": {"type": "string", "maxLength": 120},
+                **schema["properties"],
+            }
+            schema["required"] = ["visible_change", *schema["required"]]
         legend = [
             {"index": i, "seconds": round(f["timestamp_sec"], 6)}
             for i, f in enumerate(frames)
@@ -116,7 +123,13 @@ class FactPipeline(CompactPipeline):
                 "If absent or unobservable, observed=false; if unobservable set visibility_limited=true. "
                 "Return up to three event indices; if more distinct occurrences need representation set overflow=true. "
                 "Do not infer identity, authorization, ledger data or unseen actions. "
-                "Answer briefly without a description. Source indices="
+                + (
+                    "First state the directly visible change relevant to this ONE question in visible_change, "
+                    "then answer observed and select its actual source indices. A hypothetical possibility is not observed. "
+                    if self.DESCRIBE_ACTION
+                    else "Answer briefly without a description. "
+                )
+                + "Source indices="
                 + json.dumps(legend, separators=(",", ":"))
                 + " JSON="
                 + json.dumps(schema, separators=(",", ":"))
@@ -178,10 +191,9 @@ class TriggerFactPipeline(FactPipeline):
     """Visible action proposals only; the inherited final legal verifier is unchanged."""
 
     REUSE_QUESTIONS = True
+    DESCRIBE_ACTION = True
 
-    SCREEN_VERSION = (
-        "visual trigger proposals v3; shared identical questions within one window"
-    )
+    SCREEN_VERSION = "visual trigger proposals v4; direct visual change before decision; shared identical questions within one window"
     QUESTIONS = {
         "NB231-22": FACTS["NB231-22"],
         "NB231-20-PRESENCE": "A person visibly counts, sorts or packs banknotes or coins. Merely touching a desk or handling ordinary papers is not cash handling. Customer presence does not determine whether this action occurs.",

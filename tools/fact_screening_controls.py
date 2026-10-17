@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw
 from fact_pipeline import FactPipeline
 
 
-def verify(model, directory):
+def verify(model, directory, pipeline_class=FactPipeline):
     directory.mkdir(parents=True, exist_ok=True)
     source = directory / "synthetic-questions.json"
     rule = {
@@ -39,7 +39,7 @@ def verify(model, directory):
             dict(f, id=f"f{i}", timestamp_sec=[0.0, 0.4, 1.2, 2.7][i])
             for i, f in enumerate(sequence)
         ]
-        pipeline = FactPipeline(model, registry)
+        pipeline = pipeline_class(model, registry)
         result = pipeline.ask(sequence, None, time.time() + 90, directory / order)
         valid = all(
             e.event_frame_id in {f["id"] for f in sequence} for e in result.events

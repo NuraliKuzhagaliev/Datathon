@@ -24,14 +24,15 @@ class FactModel:
                     "visibility_limited": False,
                 }
             )
-        return json.dumps(
-            {
-                "observed": self.state == "observed",
-                "indices": self.indices,
-                "visibility_limited": self.state == "unclear",
-                "overflow": self.overflow,
-            }
-        )
+        response = {
+            "observed": self.state == "observed",
+            "indices": self.indices,
+            "visibility_limited": self.state == "unclear",
+            "overflow": self.overflow,
+        }
+        if "visible_change" in output_schema["properties"]:
+            response = {"visible_change": "Generated movement only", **response}
+        return json.dumps(response)
 
 
 @pytest.mark.parametrize(

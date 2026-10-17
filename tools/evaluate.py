@@ -215,7 +215,9 @@ def main():
         if a.experimental_fact_screen:
             from fact_screening_controls import verify as verify_facts
 
-            if not verify_facts(model, a.output / "synthetic-fact-direction")["passed"]:
+            if not verify_facts(
+                model, a.output / "synthetic-fact-direction", type(pipeline)
+            )["passed"]:
                 raise RuntimeError(
                     "Synthetic positive/negative fact screen failed before private evaluation"
                 )
