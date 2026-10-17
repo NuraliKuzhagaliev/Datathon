@@ -14,7 +14,12 @@ from synthetic_clip import create
 
 
 def verify(
-    model, registry, output, wordings=("possible", "observed"), show_output=False
+    model,
+    registry,
+    output,
+    wordings=("possible", "observed"),
+    show_output=False,
+    pipeline_class=None,
 ):
     output.mkdir(parents=True, exist_ok=True)
     source = create(output / "generated-pattern.mov", rotated=True)
@@ -32,7 +37,11 @@ def verify(
     for wording in wordings:
         directory = output / wording
         directory.mkdir(exist_ok=True)
-        pipeline = CompactPipeline(model, registry, screen_wording=wording)
+        pipeline = (
+            pipeline_class(model, registry)
+            if pipeline_class
+            else CompactPipeline(model, registry, screen_wording=wording)
+        )
         screen = pipeline.ask(frames, None, time.time() + 90, directory)
         key = next(iter(registry.enabled))
         rule = registry.enabled[key]

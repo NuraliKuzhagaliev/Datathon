@@ -11,7 +11,9 @@ from cashproof.errors import ProcessingError
 
 
 class CandidateModel:
-    def __init__(self, model_dir, compact=False, native_video=False):
+    def __init__(self, model_dir, compact=False, native_video=False, precision="nf4"):
+        if precision not in {"nf4", "bf16"}:
+            raise ValueError("Unknown experimental precision")
         if native_video and not compact:
             raise ValueError("Native video requires the explicit compact experiment")
         self.native_video = native_video
@@ -38,6 +40,13 @@ class CandidateModel:
             or manifest["revision"] != revisions[manifest["repo_id"]]
         ):
             raise ValueError("Unexpected experimental checkpoint")
+        if precision == "bf16" and manifest["repo_id"] != "Qwen/Qwen3-VL-2B-Instruct":
+            raise ValueError("Unquantized experiment is qualified for 2B only")
+        quantization_description = (
+            "NF4 double, BF16 compute, visual module unquantized"
+            if precision == "nf4"
+            else "BF16, no quantization"
+        )
         expected = {
             "model-00001-of-00002.safetensors": "30a01a0556622645a3cce87b655bbbbbc1f170c196099f1b666c93202c3339a9",
             "model-00002-of-00002.safetensors": "046296a2a387efb43b0c997d5833c789604d168834f6e0d3064bf7bb13d002a6",
@@ -110,7 +119,7 @@ class CandidateModel:
                         "transformers",
                     )
                 },
-                "quantization": "NF4 double, BF16 compute, visual module unquantized",
+                "quantization": quantization_description,
                 "image_max_edge": 848,
                 "screening_max_pixels": 131072,
                 "verification_max_pixels": 262144,
@@ -120,13 +129,17 @@ class CandidateModel:
             manifest["repo_id"]
             + "@"
             + manifest["revision"]
-            + ";nf4-double;bnb=0.48.1;experimental"
+            + (
+                ";nf4-double;bnb=0.48.1;experimental"
+                if precision == "nf4"
+                else ";bf16;experimental"
+            )
         )
         self.runtime_configuration = {
             "image_max_edge": 848,
             "screening_max_pixels": 131072,
             "verification_max_pixels": 262144,
-            "quantization": "NF4 double; visual module BF16; bitsandbytes 0.48.1",
+            "quantization": quantization_description,
             "screening_window_sec": 7,
             "screening_overlap_sec": 1,
             "verification_dense_radius_sec": 1,
@@ -167,12 +180,16 @@ class CandidateModel:
         self.tokenizer_data = grammar.build_token_enforcer_tokenizer_data(
             self.processor.tokenizer
         )
-        quantization = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.bfloat16,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True,
-            llm_int8_skip_modules=["visual", "lm_head"],
+        quantization = (
+            BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
+                llm_int8_skip_modules=["visual", "lm_head"],
+            )
+            if precision == "nf4"
+            else None
         )
         if self.non_thinking:
             from transformers import Qwen3_5ForConditionalGeneration

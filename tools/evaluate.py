@@ -32,6 +32,14 @@ def main():
     p.add_argument("--verify-grounding", action="store_true")
     p.add_argument("--experimental-compact", action="store_true")
     p.add_argument("--native-video", action="store_true")
+    p.add_argument("--experimental-fact-screen", action="store_true")
+    p.add_argument("--experimental-precision", choices=["nf4", "bf16"], default="nf4")
+    p.add_argument(
+        "--experimental-screen-pixels",
+        type=int,
+        choices=[65536, 131072, 262144],
+        default=65536,
+    )
     p.add_argument(
         "--screen-wording", choices=["possible", "observed"], default="possible"
     )
@@ -53,13 +61,22 @@ def main():
         help="Required for validation: completed development aggregate with the exact frozen configuration",
     )
     a = p.parse_args()
-    if a.experimental_compact and not a.experimental_nf4:
+    if a.experimental_fact_screen:
+        a.experimental_compact = True
+    if (
+        a.experimental_precision != "nf4" or a.experimental_screen_pixels != 65536
+    ) and not a.experimental_fact_screen:
+        raise ValueError(
+            "Precision/pixel comparison requires explicit fact-screen experiment"
+        )
+    experimental = a.experimental_nf4 or a.experimental_fact_screen
+    if a.experimental_compact and not experimental:
         raise ValueError("Compact experiment requires the isolated NF4 adapter")
     if a.native_video and not a.experimental_compact:
         raise ValueError("Native video requires the isolated compact experiment")
     if a.screen_wording != "possible" and not a.experimental_compact:
         raise ValueError("Screening wording requires the isolated compact experiment")
-    if a.experimental_nf4 and a.split != "development":
+    if experimental and a.split != "development":
         raise ValueError("Experimental adapter cannot open validation")
     if a.split == "validation" and not a.freeze_from:
         raise ValueError(
@@ -91,16 +108,26 @@ def main():
     if any(len({r["label"] for r in rs}) > 1 for rs in by_hash.values()):
         raise ValueError("Conflicting binary labels")
     force_offline()
-    if a.experimental_nf4:
+    if experimental:
         from candidate_model import CandidateModel
 
         model = CandidateModel(
-            a.model_dir, compact=a.experimental_compact, native_video=a.native_video
+            a.model_dir,
+            compact=a.experimental_compact,
+            native_video=a.native_video,
+            precision=a.experimental_precision,
         )
+        if a.experimental_fact_screen:
+            model.runtime_configuration.update(
+                screening_max_pixels=a.experimental_screen_pixels,
+                verification_max_pixels=min(262144, a.experimental_screen_pixels * 2),
+                image_max_edge=848,
+            )
+            model.manifest["experimental_recipe"].update(model.runtime_configuration)
     else:
         model = LocalQwen(a.model_dir)
     if a.verify_grounding:
-        if a.experimental_nf4:
+        if experimental:
             from grammar_controls import verify as verify_grammar
 
             if not verify_grammar(model, a.output / "synthetic-grammar-controls")[
@@ -129,7 +156,11 @@ def main():
     registry = Registry(a.rules)
     if not 1 <= a.max_candidates <= 32:
         raise ValueError("Candidate budget must be between 1 and 32")
-    if a.experimental_compact:
+    if a.experimental_fact_screen:
+        from fact_pipeline import FactPipeline
+
+        pipeline = FactPipeline(model, registry, a.max_candidates)
+    elif a.experimental_compact:
         from compact_pipeline import CompactPipeline
 
         pipeline = CompactPipeline(
@@ -145,11 +176,19 @@ def main():
             registry,
             a.output / "synthetic-screening-controls",
             wordings=[a.screen_wording],
+            pipeline_class=type(pipeline) if a.experimental_fact_screen else None,
         )
         if not all(c["passes_negative_control"] for c in controls):
             raise RuntimeError(
                 "Synthetic nonhuman negative control failed before private evaluation"
             )
+        if a.experimental_fact_screen:
+            from fact_screening_controls import verify as verify_facts
+
+            if not verify_facts(model, a.output / "synthetic-fact-direction")["passed"]:
+                raise RuntimeError(
+                    "Synthetic positive/negative fact screen failed before private evaluation"
+                )
         model.technical_calls.clear()
     if a.freeze_from:
         frozen = json.loads(a.freeze_from.read_text(encoding="utf-8"))
