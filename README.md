@@ -2,7 +2,7 @@
 
 Local video review for possible cashier-procedure violations, with source-linked evidence and a separate human decision.
 
-**Status:** real local GPU upload-to-result works; backend 0.2.0 processed the longest supplied video in 173.01 seconds. Twenty-one backend tests pass. Backend 0.3.0 completed five queued four-second synthetic uploads in 4.85–9.94 seconds. Detection quality is inadequate: the full development run missed all 15 positives (27 completed, one technical failure out of 28). Local automatic review and model/rule experiments continue. Portable runtime qualification, web/desktop integration and public HTTPS remain gates in [verification](docs/integration/verification.md). This checkout is not a completed competition submission.
+**Status:** backend and B's React/Electron frontend are integrated on contract 1.0.0. The local same-origin GPU service is running at `http://127.0.0.1:8000`; a new 28.7 MB development MOV completed through the separate jury key in 22.05 seconds. There are 23 passing backend tests, 43 UI/security tests, three browser/API synthetic scenarios and two production browser checks. Detection quality remains inadequate: the baseline development run missed all 15 positives (27 completed, one technical failure out of 28). Public HTTPS, cross-machine access, full disconnected desktop execution and useful detection quality remain open. See [A's handoff to B](docs/integration/A_TO_B_STATUS.md) and [verification](docs/integration/verification.md).
 
 ## Backend setup
 
@@ -25,7 +25,26 @@ Run checks:
 .venv/Scripts/python.exe -m pytest services/backend/tests -q
 ```
 
-For web integration, supply B's build directory with `--frontend-dir apps/web/dist`. For desktop, use `--port 0`, loopback and a fresh per-launch key. The single stdout `http_ready` line reports the bound port; model readiness is a separate health check. See the [runbook](docs/backend/runbook.md) and [requests for B](docs/backend/requests-for-b.md).
+## Common web and Windows build
+
+Use Node >=24.13 (qualified locally: 24.19.0) and pnpm 11.25.0:
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm check:ui
+pnpm build:web
+pnpm build:desktop:connected
+```
+
+Serve the production UI with `--frontend-dir apps/web/dist`; the same backend origin handles `/`, `/api/*` and `/health/*`. Use `CASHPROOF_MODE=server` and distinct random operator/jury keys. The local team launcher preserves keys in ignored runtime data and never prints them:
+
+```powershell
+.venv/Scripts/python.exe tools/start_team_server.py --ffmpeg <prepared-ffmpeg.exe>
+```
+
+This workstation actually uses the prepared Python environment at `../../work/.venv/Scripts/python.exe` relative to the repository. Credentials stay at `runtime-data/team-server/credentials.json`; enter the operator value locally in the UI and never paste it into an agent conversation. Do not regenerate keys for an existing case store.
+
+`127.0.0.1` is usable only on this computer. A team HTTPS route is still needed for B's separate PC. Desktop uses `--port 0`, loopback and a fresh per-launch key. The single stdout `http_ready` line reports the bound port; model readiness is a separate health check. Full offline packaging uses `pnpm build:desktop` after placing the verified private bundle at `releases/backend`. See the [runbook](docs/backend/runbook.md).
 
 ## API and results
 

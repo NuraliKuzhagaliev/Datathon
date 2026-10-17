@@ -117,17 +117,17 @@ def main():
             file.unlink()
     for file in (py / "Lib/site-packages").glob("*.dist-info/direct_url.json"):
         file.unlink()  # Development installation locations are not runtime inputs.
-    copytree(
+    shutil.copytree(
         ROOT / "services/backend/src/cashproof",
         a.destination / "app/cashproof",
         ignore=shutil.ignore_patterns("__pycache__"),
     )
-    copytree(
+    shutil.copytree(
         ROOT / "packages/contracts",
         a.destination / "packages/contracts",
         ignore=shutil.ignore_patterns("fixtures", "build_contract.py"),
     )
-    copytree(ROOT / "assets/rules", a.destination / "assets/rules")
+    shutil.copytree(ROOT / "assets/rules", a.destination / "assets/rules")
     model_destination = a.destination / "models" / model_name
     model_destination.mkdir(parents=True)
     for item in manifest["files"]:

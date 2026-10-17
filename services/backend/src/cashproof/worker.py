@@ -18,6 +18,9 @@ def worker_main(settings: Settings, channel):
     force_offline()
     store = Store(settings.data_dir)
     try:
+        from .lifecycle import bind_worker_lifetime
+
+        bind_worker_lifetime()
         from .inference.model import LocalQwen
         from .inference.pipeline import Pipeline
 
