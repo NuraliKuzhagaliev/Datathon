@@ -10,8 +10,51 @@ import sys
 import time
 
 import httpx
+from jsonschema import validate
+import hashlib
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def runtime_plan(bundle=None):
+    if bundle is None:
+        return (
+            [sys.executable],
+            ROOT,
+            {"PYTHONPATH": str(ROOT / "services/backend/src")},
+            None,
+        )
+    root = Path(bundle).resolve()
+    launch = json.loads((root / "launch.json").read_text(encoding="utf-8"))
+    validate(
+        launch,
+        json.loads(
+            (ROOT / "packages/contracts/desktop-launch.schema.json").read_text(
+                encoding="utf-8"
+            )
+        ),
+    )
+    if any(flag not in {"-s", "-B", "-u"} for flag in launch["args_prefix"]):
+        raise ValueError("Only supported Python interpreter flags are allowed")
+    executable = (root / launch["executable"]).resolve()
+    cwd = (root / launch["cwd"]).resolve()
+    if not executable.is_relative_to(root) or not cwd.is_relative_to(root):
+        raise ValueError("Runtime paths must stay inside the bundle")
+    if not executable.is_file() or not cwd.is_dir():
+        raise ValueError("Runtime launch paths are missing")
+    if any(
+        re.search(r"(^|_)(API_?KEY|KEY|TOKEN|SECRET|PASSWORD)($|_)", key, re.I)
+        for key in launch["env"]
+    ):
+        raise ValueError("Bundle environment must not contain credentials")
+    manifest = (root / "manifest.json").read_bytes()
+    return (
+        [str(executable), *launch["args_prefix"]],
+        cwd,
+        launch["env"],
+        hashlib.sha256(manifest).hexdigest(),
+    )
 
 
 def main():
@@ -21,7 +64,15 @@ def main():
         "--data-dir", type=Path, default=ROOT / "runtime-data/team-server"
     )
     parser.add_argument("--ffmpeg", type=Path, required=True)
+    parser.add_argument(
+        "--bundle",
+        type=Path,
+        help="Run the checked portable runtime instead of the development environment",
+    )
     args = parser.parse_args()
+    runtime_command, runtime_cwd, runtime_env, bundle_manifest_sha256 = runtime_plan(
+        args.bundle
+    )
     directory = args.data_dir.resolve()
     directory.mkdir(parents=True, exist_ok=True)
     frontend = ROOT / "apps/web/dist"
@@ -38,20 +89,23 @@ def main():
                 stream,
             )
     credentials = json.loads(credential_file.read_text(encoding="utf-8"))
-    env = os.environ | {
-        "PYTHONPATH": str(ROOT / "services/backend/src"),
-        "PYTHONNOUSERSITE": "1",
-        "PYTHONDONTWRITEBYTECODE": "1",
-        "CASHPROOF_API_KEY": credentials["operator"],
-        "CASHPROOF_JURY_KEY": credentials["jury"],
-        "CASHPROOF_MODE": "server",
-        "CASHPROOF_MAX_PENDING": "1",
-        "CASHPROOF_FFMPEG": str(args.ffmpeg.resolve()),
-        "HF_HUB_OFFLINE": "1",
-        "TRANSFORMERS_OFFLINE": "1",
-        "HF_HUB_DISABLE_TELEMETRY": "1",
-        "OTEL_SDK_DISABLED": "true",
-    }
+    env = (
+        os.environ
+        | runtime_env
+        | {
+            "PYTHONNOUSERSITE": "1",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "CASHPROOF_API_KEY": credentials["operator"],
+            "CASHPROOF_JURY_KEY": credentials["jury"],
+            "CASHPROOF_MODE": "server",
+            "CASHPROOF_MAX_PENDING": "1",
+            "CASHPROOF_FFMPEG": str(args.ffmpeg.resolve()),
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "HF_HUB_DISABLE_TELEMETRY": "1",
+            "OTEL_SDK_DISABLED": "true",
+        }
+    )
     base = f"http://127.0.0.1:{args.port}"
     with httpx.Client(timeout=2, trust_env=False) as client:
         try:
@@ -63,7 +117,7 @@ def main():
                 "Port already serves HTTP; preserve its process and credentials"
             )
     command = [
-        sys.executable,
+        *runtime_command,
         "-m",
         "cashproof.bootstrap",
         "--host",
@@ -82,7 +136,7 @@ def main():
     ):
         process = subprocess.Popen(
             command,
-            cwd=ROOT,
+            cwd=runtime_cwd,
             env=env,
             stdin=subprocess.DEVNULL,
             stdout=stdout,
@@ -127,6 +181,8 @@ def main():
             "command": command,
             "credentials_saved_locally": True,
             "cross_machine_https_verified": False,
+            "portable_runtime": args.bundle is not None,
+            "runtime_manifest_sha256": bundle_manifest_sha256,
         }
         (directory / "technical-status.json").write_text(
             json.dumps(result, indent=2), encoding="utf-8"

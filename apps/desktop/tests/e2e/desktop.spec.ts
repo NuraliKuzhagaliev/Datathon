@@ -1,6 +1,6 @@
 import { test, expect, _electron as electron } from '@playwright/test';
 import path from 'node:path';
-import { existsSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, copyFileSync, writeFileSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 
 test('Electron launcher, missing bundle, connected mode and sandboxed bridge', async () => {
@@ -60,12 +60,18 @@ test('synthetic local process handshake, Unicode paths, in-memory key and shutdo
 });
 
 test('packaged connected EXE starts and refuses missing offline resources', async () => {
-  const exe = path.resolve('apps/desktop/dist/connected/win-unpacked/CashProof Connected.exe');
+  const exe = path.resolve(process.env.CASHPROOF_PACKAGED_EXE || 'apps/desktop/dist/connected/win-unpacked/CashProof Connected.exe');
   test.skip(!existsSync(exe), 'Build the connected Windows folder before this check.');
   const app = await electron.launch({executablePath:exe,args:[]});
   try {
     const launcher = await app.firstWindow(); await expect(launcher.getByRole('heading',{name:'Где выполняется анализ?'})).toBeVisible();
     expect(await app.evaluate(({app})=>app.isPackaged)).toBeTruthy();
+    if (process.env.CASHPROOF_PACKAGED_EXE) {
+      const folder = path.dirname(exe);
+      expect(readFileSync(path.join(folder, 'resources/web/third-party-notices.txt'), 'utf8')).toContain('react 19.3.1');
+      expect(existsSync(path.join(folder, 'LICENSE.electron.txt'))).toBeTruthy();
+      expect(existsSync(path.join(folder, 'LICENSES.chromium.html'))).toBeTruthy();
+    }
     await launcher.locator('#local').click(); await expect(launcher.getByRole('status')).toContainText('сервис анализа не установлен');
     await launcher.screenshot({path:'apps/desktop/dist/qa-packaged.png'});
   } finally { await app.close(); }

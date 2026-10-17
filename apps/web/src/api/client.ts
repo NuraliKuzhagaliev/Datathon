@@ -13,7 +13,9 @@ const messages: Record<number, string> = {
   415: 'Сервер не поддерживает этот формат видео.',
   422: 'Сервер отклонил данные. Проверьте формат файла или поля.',
   429: 'Очередь заполнена. Повторите загрузку позже.',
+  502: 'Сервис анализа недоступен через этот адрес. Попросите оператора проверить подключение сервера.',
   503: 'Модель или обработчик пока не готовы. Проверьте раздел «Система».',
+  504: 'Сервер анализа не ответил вовремя. Проверьте список дел перед повторной загрузкой.',
 };
 export const errorText = (error: unknown) => error instanceof ApiError && error.status === 429 && error.retryAfter && /^\d+$/.test(error.retryAfter) ? `${error.message} Сервер рекомендует подождать ${error.retryAfter} сек.` : error instanceof Error ? error.message : 'Не удалось выполнить действие.';
 
@@ -28,7 +30,12 @@ export class HttpApi implements ReviewApi {
       if (signal?.aborted) throw error;
       throw new Error('Нет связи с сервером. Проверьте подключение и повторите запрос.');
     }
-    if (!response.ok && !(allowNotReady && response.status === 503)) throw new ApiError(response.status, messages[response.status] || `Ошибка сервера (${response.status}).`, response.headers.get('Retry-After'));
+    if (!response.ok && !(allowNotReady && response.status === 503)) {
+      const message = response.status === 404 && path === '/api/ui/cases'
+        ? 'По этому адресу не найден сервис анализа. Попросите оператора проверить адрес и подключение API.'
+        : messages[response.status] || `Ошибка сервера (${response.status}).`;
+      throw new ApiError(response.status, message, response.headers.get('Retry-After'));
+    }
     return response;
   }
   async list(signal?: AbortSignal) { return validate<CaseList>('CaseList', await (await this.request('/api/ui/cases', {}, signal)).json()); }

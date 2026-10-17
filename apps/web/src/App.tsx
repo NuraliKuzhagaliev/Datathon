@@ -9,6 +9,7 @@ import { Evidence } from './features/Evidence';
 import { Rules } from './features/Rules';
 import { Cases } from './features/Cases';
 import { ReviewDraftProvider, SessionExit } from './features/ReviewDrafts';
+import { ThirdPartyNotices } from './features/ThirdPartyNotices';
 import { useRequest } from './lib/useRequest';
 
 type Page = 'cases' | 'rules' | 'system';
@@ -34,6 +35,7 @@ function System({ api }: { api: ReviewApi }) {
   return <section className="page"><div className="eyebrow">{t("ПОДКЛЮЧЕНИЕ И СРЕДА")}</div><h1>{t("Система")}</h1><p className="page-description">{t("Состояние сервиса по его фактическому ответу. Здесь нет предположений о готовности модели.")}</p>{health.error && <ErrorNotice message={health.error} retry={health.retry}/>}
     <div className="system-grid"><div className="system-card"><Server size={24}/><h2>{t("Сервис анализа")}</h2><Tag tone={health.data?.ready ? 'mint' : 'amber'}>{api.synthetic ? t("Синтетическое демо") : health.data?.ready ? t("Готов к обработке") : health.loading ? t("Проверяется…") : t("Не готов / недоступен")}</Tag><dl className="metadata"><div><dt>{t("Адрес интерфейса")}</dt><dd className="hash">{window.location.origin}</dd></div><div><dt>{t("Режим сервиса")}</dt><dd>{api.synthetic ? t("Модель не запущена") : health.data?.mode === 'offline' ? t("На этом компьютере") : health.data?.mode === 'server' ? t("Сервер команды") : t("Нет данных")}</dd></div><div><dt>{t("Контракт")}</dt><dd>{health.data?.contract_version ?? t("Не подтверждён")}</dd></div></dl><button className="button secondary" onClick={health.retry}><RefreshCw size={16}/>{t("Проверить соединение")}</button></div>
     <div className="system-card"><Monitor size={24}/><h2>{t("Среда запуска")}</h2><p>{window.cashproof ? t("Приложение Windows · общий интерфейс CashProof") : t("Веб-браузер · общий интерфейс CashProof")}</p><p className="muted">{t("Версии модели и норм указаны в каждом деле. Готовность сервиса показывается по ответу сервера; сведения о видеокарте и ресурсах модели здесь недоступны.")}</p><div className="notice"><Network size={18}/>{t("Автономность подтверждается отдельным запуском без сети на компьютере с подготовленными ресурсами.")}</div>{window.cashproof && <button className="button secondary" onClick={() => void window.cashproof?.showLauncher()}>{t("Выбрать режим подключения")}</button>}</div></div>
+    <ThirdPartyNotices/>
   </section>;
 }
 

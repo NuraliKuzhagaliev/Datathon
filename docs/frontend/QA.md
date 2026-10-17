@@ -1,5 +1,9 @@
 # Frontend verification record
 
+Common audit additions: 20 dev browser tests (including bundled notices with blocked network), 38 web unit tests, 5 original desktop security tests plus 4 resource-integrity tests, 3 production-API scenarios, 2 production-browser checks, 4 Electron scenarios and a separate smoke of the new Connected EXE passed. The corrected full package independently passed all 20,529 backend file hashes. These results cover engineering behavior with synthetic inputs; the new real-runtime and disconnected gates remain separate. The earlier full EXE did run real inference, but its nested backend omitted a manifest-listed `.gitkeep`; do not treat that package as hash-complete.
+
+**Актуализация общего аудита 17 октября 2026.** Исторические утверждения ниже относятся к состоянию B до интеграции. Полный backend-комплект и реальные прогоны на A уже существуют. Текущая доступность API, качество модели и открытые проверки описаны в [общем акте](../integration/PROJECT_STATUS.md); они не подтверждаются ранними синтетическими тестами.
+
 Date: 17 October 2026. All browser-visible data is synthetic. No supplied bank footage, frames or derived descriptions were inspected by cloud tools.
 
 ## Executed checks

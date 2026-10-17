@@ -340,5 +340,13 @@
   "Браузер не смог открыть предпросмотр MOV. Файл можно отправить: его формат проверит сервер.": "The browser could not preview this MOV. You can still upload it: the server will validate its format.",
   "Проверьте, что выбрали нужное видео. Файл отправится только после нажатия «Начать анализ».": "Check that you selected the correct video. It will be sent only after you select Start analysis.",
   "Убрать выбранный файл": "Remove selected file",
-  "Добавьте один MOV за раз.": "Add one MOV at a time."
+  "Добавьте один MOV за раз.": "Add one MOV at a time.",
+  "По этому адресу не найден сервис анализа. Попросите оператора проверить адрес и подключение API.": "No analysis service was found at this address. Ask the operator to check the address and API connection.",
+  "Сервис анализа недоступен через этот адрес. Попросите оператора проверить подключение сервера.": "The analysis service is unavailable at this address. Ask the operator to check the server connection.",
+  "Сервер анализа не ответил вовремя. Проверьте список дел перед повторной загрузкой.": "The analysis server did not respond in time. Check the case list before uploading again.",
+  "Сторонние компоненты": "Third-party components",
+  "Лицензии интерфейса и шрифта сохранены в приложении и доступны без сети.": "Interface and font licenses are bundled and available offline.",
+  "В Windows сведения Electron и Chromium находятся в LICENSE.electron.txt и LICENSES.chromium.html рядом с EXE. Состав backend указан в его manifest.json. Это не подтверждение полной проверки прав распространения.": "On Windows, Electron and Chromium notices are in LICENSE.electron.txt and LICENSES.chromium.html beside the EXE. The backend inventory is in its manifest.json. This does not certify a complete redistribution review.",
+  "Открыть лицензии интерфейса": "Open interface licenses",
+  "Лицензии интерфейса": "Interface licenses"
 }
