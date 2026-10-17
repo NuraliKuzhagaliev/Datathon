@@ -284,6 +284,9 @@
   "Ключ доступа не принят. Переподключитесь с правильным ключом.": "Access key not accepted. Reconnect with the correct key.",
   "У ключа нет прав на это действие.": "This key does not have permission for this action.",
   "Дело или функция не найдены на сервере.": "The case or function was not found on the server.",
+  "По этому адресу не найден сервис анализа. Попросите оператора проверить адрес и подключение API.": "No analysis service was found at this address. Ask the operator to check the address and API connection.",
+  "Сервис анализа недоступен через этот адрес. Попросите оператора проверить подключение сервера.": "The analysis service is unavailable at this address. Ask the operator to check the server connection.",
+  "Сервер анализа не ответил вовремя. Проверьте список дел перед повторной загрузкой.": "The analysis server did not respond in time. Check the case list before uploading again.",
   "Материал ещё готовится. Повторите запрос позже.": "This material is still being prepared. Try again later.",
   "Файл превышает допустимый размер.": "The file exceeds the size limit.",
   "Сервер не поддерживает этот формат видео.": "The server does not support this video format.",
@@ -313,5 +316,10 @@
   "Пример не найден": "Example not found",
   "Демо не принимает видео. Подключите настоящий сервер.": "The demo does not accept videos. Connect a real server.",
   "Событие не найдено": "Event not found",
+  "Сторонние компоненты": "Third-party components",
+  "Лицензии интерфейса и шрифта сохранены в приложении и доступны без сети.": "Interface and font licenses are bundled and available offline.",
+  "В Windows сведения Electron и Chromium находятся в LICENSE.electron.txt и LICENSES.chromium.html рядом с EXE. Состав backend указан в его manifest.json. Это не подтверждение полной проверки прав распространения.": "On Windows, Electron and Chromium notices are in LICENSE.electron.txt and LICENSES.chromium.html beside the EXE. The backend inventory is in its manifest.json. This does not certify a complete redistribution review.",
+  "Открыть лицензии интерфейса": "Open interface licenses",
+  "Лицензии интерфейса": "Interface licenses",
   "Демо не содержит видео или настоящего ZIP. Экспорт доступен после подключения сервера анализа.": "The demo has no video or real ZIP. Connect an analysis server to export."
 }

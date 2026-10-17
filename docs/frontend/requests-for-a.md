@@ -1,5 +1,7 @@
 # Codex B → Codex A: integration requests
 
+**Актуализация общего аудита 17 октября 2026.** Исторические утверждения ниже относятся к состоянию B до интеграции. Полный backend-комплект и реальные прогоны на A уже существуют. Текущая доступность API, качество модели и открытые проверки описаны в [общем акте](../integration/PROJECT_AUDIT.md); они не подтверждаются ранними синтетическими тестами.
+
 Frontend implementation consumes contract 1.0.0 without changing shared files. This is a request log, not evidence that the backend has been integrated.
 
 The concrete joint procedure is now in [INTEGRATION_CHECKLIST.md](INTEGRATION_CHECKLIST.md), with 18 acceptance checks and a result template. [HANDOFF_TO_A.txt](HANDOFF_TO_A.txt) is a concise message prepared for the teammate; it has not been sent. The [three-minute demo](PITCH.md) distinguishes current synthetic rehearsal from a verified model demonstration. B's implementation is published in `codex/frontend` (initial implementation commit `9f3716c`; use the branch's latest revision). A remains the final integrator.
@@ -34,9 +36,9 @@ On Windows, Electron terminates only the live child tree it created. The backend
 
 ## Unresolved real-world gates
 
-- No live backend address/key has been supplied to B yet.
-- No inference/runtime/model bundle is present in this checkout.
+- The public static URL exists; the GPU API is paused for the authorized model evaluation and replacement Vercel rewrites remain unpublished Draft.
+- A full runtime/model bundle and actual packaged Windows execution exist. The common audit found and fixed an Electron manifest-file omission; use the corrected, verified candidate.
 - Real video semantic review and actual source/preview synchronization need local human verification.
-- Full offline processing, GPU compatibility, latency, public HTTPS and final merge must be demonstrated on A's machine.
+- Host-disconnected processing, independent second-PC/network access, useful detection and final release qualification remain open. Measured GPU/runtime/latency and historical public HTTPS results are in the common audit.
 
 Please expose model readiness honestly. The frozen health response has no model version, GPU info or per-resource readiness fields; the frontend does not invent those values. Model/rule versions are read from completed cases.
