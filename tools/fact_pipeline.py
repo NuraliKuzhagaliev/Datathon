@@ -34,13 +34,47 @@ class FactPipeline(CompactPipeline):
             getattr(model, "manifest", None),
             model.runtime_configuration,
         )
-        self.stage_counts.update(fact_observed=0, fact_absent=0, fact_unclear=0)
+        self.stage_counts.update(
+            fact_observed=0,
+            fact_absent=0,
+            fact_unclear=0,
+            scene_calls=0,
+            scenes_without_people=0,
+        )
 
     def ask(self, frames, verify, deadline, private_dir):
         if verify:
             return super().ask(frames, verify, deadline, private_dir)
         if not frames:
             raise ProcessingError("ANALYSIS_INCOMPLETE", "No sampled frames")
+        scene_schema = {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "sequence": {"type": "string", "maxLength": 120},
+                "people_visible": {"type": "boolean"},
+                "visibility_limited": {"type": "boolean"},
+            },
+            "required": ["sequence", "people_visible", "visibility_limited"],
+        }
+        scene = self._request(
+            frames,
+            "Describe only the actually visible objects and changes in these images, in one short sentence. "
+            "Are any real people or drawn human figures visible? Abstract patterns, numbers, machines and furniture alone are not people. "
+            "Do not assume a bank, money or a workflow. Return JSON="
+            + json.dumps(scene_schema, separators=(",", ":")),
+            scene_schema,
+            deadline,
+            private_dir,
+            lambda value: value,
+        )
+        self.stage_counts["scene_calls"] += 1
+        if not scene["people_visible"]:
+            self.stage_counts["scenes_without_people"] += 1
+            self.stage_counts["screening_calls"] += 1
+            return ScreenOutput(
+                events=[], visibility_limited=scene["visibility_limited"]
+            )
         frame_index = {"type": "integer", "enum": list(range(len(frames)))}
         check = {
             "type": "object",
@@ -56,7 +90,8 @@ class FactPipeline(CompactPipeline):
             },
             "required": ["state", "indices"],
         }
-        keys = list(self.registry.enabled)
+        key_map = {f"q{i}": key for i, key in enumerate(self.registry.enabled)}
+        keys = list(key_map)
         schema = {
             "type": "object",
             "additionalProperties": False,
@@ -74,10 +109,10 @@ class FactPipeline(CompactPipeline):
             "required": ["sequence", "facts", "visibility_limited", "overflow"],
         }
         questions = {
-            key: FACTS.get(
+            token: FACTS.get(
                 key, " / ".join(self.registry.enabled[key]["predicates"].values())
             )
-            for key in keys
+            for token, key in key_map.items()
         }
         legend = [
             {"index": i, "seconds": round(frame["timestamp_sec"], 6)}
@@ -91,6 +126,9 @@ class FactPipeline(CompactPipeline):
             "For absent/unclear use an empty indices array. Do not guess cash provenance, identity, permission or invisible steps. "
             "Set overflow=true if more than three distinct action instants for one question cannot fit; never silently truncate. "
             "Pictures without people cannot show any of these human actions. Be specific about visible transitions, not generic unusualness.\n"
+            "First visual inventory (may contain mistakes; verify it against the images)="
+            + json.dumps(scene, separators=(",", ":"))
+            + "\n"
             "Questions="
             + json.dumps(questions, separators=(",", ":"))
             + "\nOrdered source times="
@@ -102,11 +140,10 @@ class FactPipeline(CompactPipeline):
         def parse(value):
             events = []
             counts = {"observed": 0, "absent": 0, "unclear": 0}
-            for key, item in value["facts"].items():
+            for token, item in value["facts"].items():
+                key = key_map[token]
                 if item["state"] == "observed" and not item["indices"]:
                     raise ValueError("Observed fact requires an actual source frame")
-                if item["state"] != "observed" and item["indices"]:
-                    raise ValueError("Unsupported fact cannot supply event instants")
                 counts[item["state"]] += 1
                 if item["state"] != "observed":
                     continue

@@ -1,6 +1,5 @@
 """Generated movement directions exercise fact screening and source-time selection."""
 
-from pathlib import Path
 from types import SimpleNamespace
 import json
 import time
