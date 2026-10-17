@@ -191,6 +191,23 @@ class CandidateModel:
             quantization_config=quantization,
             attn_implementation="sdpa",
         ).eval()
+        self.generation_token_kwargs = {}
+        if self.non_thinking:
+            # This checkpoint's nested config says EOS 248044, whereas its
+            # actual tokenizer/enforcer uses EOS 248046 (and PAD 248044).
+            # With mismatched EOS generation repeatedly emits permitted terminal
+            # tokens/whitespace until the token cap after completing valid JSON.
+            eos = self.processor.tokenizer.eos_token_id
+            pad = self.processor.tokenizer.pad_token_id
+            if not isinstance(eos, int) or not isinstance(pad, int):
+                raise ValueError("Qwen3.5 requires explicit tokenizer EOS/PAD ids")
+            self.generation_token_kwargs = {"eos_token_id": eos, "pad_token_id": pad}
+            self.runtime_configuration["effective_generation_token_ids"] = dict(
+                self.generation_token_kwargs
+            )
+            self.manifest["experimental_recipe"]["effective_generation_token_ids"] = (
+                dict(self.generation_token_kwargs)
+            )
 
     def infer(self, frames, instruction, deadline, output_schema=None):
         if len(frames) > self.runtime_configuration["max_images_per_call"]:
@@ -300,6 +317,7 @@ class CandidateModel:
                     else (1024 if verify else 768),
                     max_time=remaining,
                     use_cache=True,
+                    **self.generation_token_kwargs,
                     **kwargs,
                 )
             telemetry["output_tokens"] = int(
