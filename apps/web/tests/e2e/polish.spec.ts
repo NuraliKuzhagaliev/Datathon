@@ -1,6 +1,28 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
+test('a failed health poll clears ready indicators and recovery restores them', async ({ page }) => {
+  let available = true;
+  await page.clock.install();
+  await page.route('**/api/ui/cases', route => route.fulfill({json:{items:[]}}));
+  await page.route('**/health/ready', route => available ? route.fulfill({json:{ready:true,mode:'server',contract_version:'1.0.0'}}) : route.fulfill({status:502,body:'Synthetic outage'}));
+  await page.goto('/');
+  await page.getByLabel('Ключ доступа',{exact:true}).fill('synthetic-key');
+  await page.getByRole('button',{name:'Открыть рабочее пространство'}).click();
+  await expect(page.locator('.connection')).toContainText('Сервер готов');
+  await page.getByRole('button',{name:'Система',exact:true}).click();
+  await expect(page.getByText('Готов к обработке',{exact:true})).toBeVisible();
+  available = false;
+  await page.clock.runFor(11000);
+  await expect(page.locator('.connection')).toContainText('Сервис не готов');
+  await expect(page.getByText('Не готов / недоступен',{exact:true})).toBeVisible();
+  await expect(page.getByText('Готов к обработке',{exact:true})).toHaveCount(0);
+  available = true;
+  await page.clock.runFor(16000);
+  await expect(page.locator('.connection')).toContainText('Сервер готов');
+  await expect(page.getByText('Готов к обработке',{exact:true})).toBeVisible();
+});
+
 test('case overview filters real list metadata, sorts, searches IDs and fits mobile English', async ({ page }) => {
   const items = [
     {job_id:'test-positive',filename:'B.mov',created_at:'2026-10-17T10:00:00Z',status:'done',verdict:'violation'},

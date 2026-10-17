@@ -1,5 +1,15 @@
 # Frontend verification record
 
+## Final B release delta — 18 October 2026
+
+Found and fixed an actual readiness defect: `useRequest` retains its last data on a polling error, so the header and System previously could remain green during an outage. Both now require an error-free, completed health response. The new browser test drives ready → HTTP 502 → ready and passed (1/1, 4.9 s). TypeScript and both production browser checks were rerun successfully after this change (2/2, 5.8 s).
+
+Combined with the qualified checks below, this is **83 distinct checks** (38 unit + 10 desktop security/resources + 26 browser + 2 production + 3 API integration + 4 Electron). This count represents recorded successful runs, not a claim that every suite was rerun after the small health change. The earlier complete browser run and focused regressions are distinguished below.
+
+Release outputs: `apps/web/dist` and `apps/desktop/dist/connected-final/win-unpacked`. Both built successfully; the final packaged EXE launch passed again (1/1, 2.3 s, an existing scenario rather than another distinct test). Local archives, SHA-256 inventory and deployment receipt belong in ignored `releases/frontend`; do not commit binaries, keys or private cases. The web archive excludes QA reports. The Windows package is connected-only and unsigned; the full offline rebuild and disconnected run require A's prepared RTX 4060 host.
+
+Anonymous external probes from B's network: site `/` HTTP 200; `/health/ready` HTTP 502; prepared replacement tunnel health HTTP 502. The owner has authorized merging PR #4 and updating the static site. A successful static publication does not prove API recovery, real model quality or offline operation.
+
 ## Frontend polish qualification — 18 October 2026
 
 Base: current integration `ea69728532a07d7bf9da85ee321f542c389c63b5`, incorporated into `codex/frontend-polish`. Checks use generated video/geometric fixtures only; no supplied footage, real case content, credentials or model output was sent to an agent. User reports the service works; this update does not independently requalify the public deployment, recognition accuracy or disconnected GPU inference.
