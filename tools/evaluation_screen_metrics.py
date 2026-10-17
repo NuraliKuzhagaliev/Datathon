@@ -28,7 +28,36 @@ def proposals(case):
             answer = json.loads(record["output"])
         except (ValueError, TypeError):
             continue
-        if not isinstance(answer, dict) or answer.get("observed") is not True:
+        if not isinstance(answer, dict):
+            continue
+        joint = isinstance(answer.get("checks"), dict) and all(
+            isinstance(row, dict) and "events" in row
+            for row in answer["checks"].values()
+        )
+        if joint:
+            try:
+                legend = json.JSONDecoder().raw_decode(
+                    record["prompt"].split("Source indices=", 1)[1]
+                )[0]
+                if any(
+                    row.get("overflow") is not False
+                    for row in answer["checks"].values()
+                ):
+                    raise ValueError()
+                selected = [
+                    event["onset_index"]
+                    for row in answer["checks"].values()
+                    for event in row["events"]
+                ]
+                if any(
+                    type(i) is not int or not 0 <= i < len(legend) for i in selected
+                ):
+                    raise ValueError()
+                times.update(float(legend[i]["source_seconds"]) for i in selected)
+            except (KeyError, IndexError, ValueError, TypeError):
+                invalid += 1
+            continue
+        if answer.get("observed") is not True:
             continue
         try:
             legend = json.JSONDecoder().raw_decode(

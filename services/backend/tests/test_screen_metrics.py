@@ -1,6 +1,6 @@
 import json
 
-from evaluation_screen_metrics import score
+from evaluation_screen_metrics import score, proposals
 
 
 def test_proposal_diagnostic_deduplicates_and_never_exposes_semantics(tmp_path):
@@ -52,3 +52,28 @@ def test_proposal_diagnostic_deduplicates_and_never_exposes_semantics(tmp_path):
     assert result["invalid_positive_proposal_records_excluded"] == 2
     assert result["verification_frame_annotation_availability"]["within_0.5_sec"] == 0.5
     assert "PRIVATE_CAPTION" not in json.dumps(result)
+
+
+def test_joint_crop_views_use_real_source_times_and_do_not_duplicate_one_instant(
+    tmp_path,
+):
+    private = tmp_path / "private-inference"
+    private.mkdir()
+    legend = [{"index": 0, "source_seconds": 1.2}, {"index": 1, "source_seconds": 1.2}]
+    record = {
+        "prompt": "Source indices=" + json.dumps(legend),
+        "output": json.dumps(
+            {
+                "checks": {
+                    "TEST-A": {
+                        "events": [{"onset_index": 0}, {"onset_index": 1}],
+                        "overflow": False,
+                        "visible_change": "PRIVATE_CAPTION",
+                    }
+                }
+            }
+        ),
+    }
+    (private / "generated.json").write_text(json.dumps(record))
+    times, invalid, _ = proposals(tmp_path)
+    assert times == [1.2] and invalid == 0

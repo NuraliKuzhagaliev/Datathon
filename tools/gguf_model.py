@@ -95,7 +95,7 @@ class GGUFModel:
         image_max_tokens=256,
         context_size=6144,
     ):
-        if image_max_tokens not in {256, 512} or context_size not in {6144, 12288}:
+        if image_max_tokens not in {256, 512} or context_size not in {6144, 8192, 12288}:
             raise ValueError("Unqualified experimental visual/context budget")
         self.process = None
         self.client = None

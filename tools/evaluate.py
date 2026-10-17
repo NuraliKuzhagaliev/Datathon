@@ -35,6 +35,7 @@ def main():
     p.add_argument("--experimental-fact-screen", action="store_true")
     p.add_argument("--experimental-trigger-screen", action="store_true")
     p.add_argument("--experimental-atomic-verifier", action="store_true")
+    p.add_argument("--experimental-joint-screen", action="store_true")
     p.add_argument("--experimental-gguf-runtime", type=Path)
     p.add_argument("--gguf-provision-receipt", type=Path)
     p.add_argument("--gguf-conversion-receipt", type=Path)
@@ -42,7 +43,7 @@ def main():
     p.add_argument(
         "--experimental-screen-pixels",
         type=int,
-        choices=[65536, 131072, 262144],
+        choices=[65536, 131072, 262144, 393472],
         default=65536,
     )
     p.add_argument(
@@ -85,6 +86,12 @@ def main():
     ):
         raise ValueError(
             "GGUF requires fact screening, ordered images and pinned receipt"
+        )
+    if a.experimental_joint_screen and (
+        not a.experimental_atomic_verifier or not a.experimental_gguf_runtime
+    ):
+        raise ValueError(
+            "Joint screen requires explicit GGUF and independent final verifier"
         )
     if (
         a.experimental_precision != "nf4" or a.experimental_screen_pixels != 65536
@@ -142,6 +149,8 @@ def main():
                 private_dir,
                 screen_pixels=a.experimental_screen_pixels,
                 conversion_receipt=a.gguf_conversion_receipt,
+                image_max_tokens=512 if a.experimental_joint_screen else 256,
+                context_size=8192 if a.experimental_joint_screen else 6144,
             )
 
         model = make_gguf(a.output / "private-runtime")
@@ -214,7 +223,15 @@ def main():
             from atomic_verifier import AtomicFactPipeline
 
             pipeline_class = AtomicFactPipeline
-        pipeline = pipeline_class(model, registry, a.max_candidates)
+        if a.experimental_joint_screen:
+            from joint_screen import JointScreenPipeline
+
+            pipeline_class = JointScreenPipeline
+            pipeline = pipeline_class(
+                model, registry, a.max_candidates, use_motion_views=True
+            )
+        else:
+            pipeline = pipeline_class(model, registry, a.max_candidates)
     elif a.experimental_compact:
         from compact_pipeline import CompactPipeline
 
