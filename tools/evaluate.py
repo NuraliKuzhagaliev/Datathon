@@ -33,6 +33,7 @@ def main():
     p.add_argument("--experimental-compact", action="store_true")
     p.add_argument("--native-video", action="store_true")
     p.add_argument("--experimental-fact-screen", action="store_true")
+    p.add_argument("--experimental-trigger-screen", action="store_true")
     p.add_argument("--experimental-gguf-runtime", type=Path)
     p.add_argument("--gguf-provision-receipt", type=Path)
     p.add_argument("--experimental-precision", choices=["nf4", "bf16"], default="nf4")
@@ -65,6 +66,10 @@ def main():
     a = p.parse_args()
     if a.experimental_fact_screen:
         a.experimental_compact = True
+    if a.experimental_trigger_screen and not a.experimental_fact_screen:
+        raise ValueError(
+            "Visual trigger proposals require explicit fact-screen experiment"
+        )
     if a.experimental_gguf_runtime and (
         not a.experimental_fact_screen or a.native_video or not a.gguf_provision_receipt
     ):
@@ -179,9 +184,12 @@ def main():
     if not 1 <= a.max_candidates <= 32:
         raise ValueError("Candidate budget must be between 1 and 32")
     if a.experimental_fact_screen:
-        from fact_pipeline import FactPipeline
+        from fact_pipeline import FactPipeline, TriggerFactPipeline
 
-        pipeline = FactPipeline(model, registry, a.max_candidates)
+        pipeline_class = (
+            TriggerFactPipeline if a.experimental_trigger_screen else FactPipeline
+        )
+        pipeline = pipeline_class(model, registry, a.max_candidates)
     elif a.experimental_compact:
         from compact_pipeline import CompactPipeline
 

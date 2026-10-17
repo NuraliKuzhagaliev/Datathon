@@ -21,10 +21,14 @@ FACTS = {
 
 
 class FactPipeline(CompactPipeline):
+    QUESTIONS = FACTS
+    REUSE_QUESTIONS = False
+    SCREEN_VERSION = "visual inventory then independent short action questions v2"
+
     def __init__(self, model, registry, max_candidates=8):
         super().__init__(model, registry, max_candidates, screen_wording="observed")
         model.runtime_configuration.update(
-            experimental_screening="visual inventory then independent short action questions v2",
+            experimental_screening=self.SCREEN_VERSION,
             fact_pipeline_sha256=hashlib.sha256(
                 Path(__file__).read_bytes()
             ).hexdigest(),
@@ -99,9 +103,10 @@ class FactPipeline(CompactPipeline):
             for i, f in enumerate(frames)
         ]
         events = []
+        answers = {}
         limited = scene["visibility_limited"]
         for key, rule in self.registry.enabled.items():
-            question = FACTS.get(key, " / ".join(rule["predicates"].values()))
+            question = self.QUESTIONS.get(key, " / ".join(rule["predicates"].values()))
             prompt = (
                 "Watch these ordered source frames. Answer ONLY this visual question: "
                 + question
@@ -122,8 +127,13 @@ class FactPipeline(CompactPipeline):
                     raise ValueError("Observed action needs a real source instant")
                 return value
 
-            value = self._request(frames, prompt, schema, deadline, private_dir, parse)
-            self.stage_counts["question_calls"] += 1
+            cache_key = question if self.REUSE_QUESTIONS else key
+            if cache_key not in answers:
+                answers[cache_key] = self._request(
+                    frames, prompt, schema, deadline, private_dir, parse
+                )
+                self.stage_counts["question_calls"] += 1
+            value = answers[cache_key]
             if value["overflow"]:
                 raise ProcessingError(
                     "RESOURCE_EXHAUSTED",
@@ -162,3 +172,22 @@ class FactPipeline(CompactPipeline):
         self.stage_counts["screening_calls"] += 1
         self.stage_counts["possible_triggers"] += len(events)
         return ScreenOutput(events=events, visibility_limited=limited)
+
+
+class TriggerFactPipeline(FactPipeline):
+    """Visible action proposals only; the inherited final legal verifier is unchanged."""
+
+    REUSE_QUESTIONS = True
+
+    SCREEN_VERSION = (
+        "visual trigger proposals v3; shared identical questions within one window"
+    )
+    QUESTIONS = {
+        "NB231-22": FACTS["NB231-22"],
+        "NB231-20-PRESENCE": "A person visibly counts, sorts or packs banknotes or coins. Merely touching a desk or handling ordinary papers is not cash handling. Customer presence does not determine whether this action occurs.",
+        "NB231-21": "Cash and two or more separate paper documents are visibly handled together in one handover. This question does not require reading the documents or amounts and does not establish combined accounting.",
+        "NB231-20-STORAGE": "Visible cash remains exposed on a work surface while a person changes to another activity. This does not establish whose money it is or whether any transaction has ended.",
+        "NB231-24": FACTS["NB231-24"],
+        "NB231-25": "A cash bag is visibly opened or its contents are visibly counted. This question does not require visible damage and does not establish anybody's absence or identity.",
+        "NB231-42": "A person visibly counts, sorts or packs banknotes or coins. Merely touching a desk or handling ordinary papers is not cash handling. Customer presence does not determine whether this action occurs.",
+    }

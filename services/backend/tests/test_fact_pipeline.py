@@ -1,7 +1,8 @@
 import json
 import time
 import pytest
-from fact_pipeline import FactPipeline
+from fact_pipeline import FactPipeline, TriggerFactPipeline
+from types import SimpleNamespace
 from cashproof.errors import ProcessingError
 
 
@@ -98,3 +99,25 @@ def test_fact_overflow_is_technical_failure_not_clean_result(registry, tmp_path)
             tmp_path / "private",
         )
     assert error.value.code == "RESOURCE_EXHAUSTED"
+
+
+def test_identical_visual_question_is_reused_only_within_the_same_window(tmp_path):
+    rules = {
+        "NB231-20-PRESENCE": {"predicates": {"cash_counting": "Counting"}},
+        "NB231-42": {"predicates": {"internal_operation": "Counting"}},
+    }
+    source = tmp_path / "generated-rules.json"
+    source.write_text(json.dumps(rules))
+    registry = SimpleNamespace(path=source, enabled=rules)
+    model = FactModel(indices=[0])
+    pipeline = TriggerFactPipeline(model, registry)
+    for i in range(2):
+        result = pipeline.ask(
+            [{"id": f"f{i}", "timestamp_sec": float(i)}],
+            None,
+            time.time() + 60,
+            tmp_path / f"private-{i}",
+        )
+        assert {e.rule_id for e in result.events} == set(rules)
+        assert all(e.event_frame_id == f"f{i}" for e in result.events)
+    assert model.calls == 4  # Separate inventory and one visual question per window.

@@ -29,6 +29,13 @@ def score(manifest, run, split):
         if row["split"] == split:
             grouped.setdefault(row["sha256"], []).append(row)
     totals = {t: 0 for t in (2, 5, 10)}
+    evaluated = sum((run / digest).is_dir() for digest in grouped)
+    aggregate_path = run / "aggregate.json"
+    aggregate = (
+        json.loads(aggregate_path.read_text(encoding="utf-8"))
+        if aggregate_path.is_file()
+        else {}
+    )
     annotated = positive_cases = failed = predicted_positive_instants = 0
     errors = []
     for digest, rows in grouped.items():
@@ -54,6 +61,11 @@ def score(manifest, run, split):
             errors.extend(min(abs(t - v) for v in predictions) for t in times)
     return {
         "split": split,
+        "partial_evaluation": evaluated != len(grouped)
+        or bool(aggregate.get("partial_evaluation", False)),
+        "expected_split_unique_videos": len(grouped),
+        "evaluated_unique_videos": evaluated,
+        "missing_split_unique_videos": len(grouped) - evaluated,
         "positive_cases_accounted": positive_cases,
         "positive_technical_failures": failed,
         "annotated_instants_total": annotated,
