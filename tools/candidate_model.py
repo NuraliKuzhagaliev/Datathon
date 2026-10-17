@@ -1,6 +1,7 @@
-"""Isolated local 4B/NF4 experiment; not a production model selector."""
+"""Allowlisted local NF4 experiments; never a production model selector."""
 
 import hashlib
+from importlib.metadata import version
 import json
 from pathlib import Path
 import time
@@ -18,14 +19,11 @@ class CandidateModel:
         self.technical_calls = []
         force_offline()
         import torch
-        from transformers import (
-            AutoProcessor,
-            Qwen3VLForConditionalGeneration,
-            BitsAndBytesConfig,
-        )
-        from lmformatenforcer.integrations.transformers import (
-            build_token_enforcer_tokenizer_data,
-        )
+        import transformers
+        from transformers import AutoProcessor, BitsAndBytesConfig
+        import lmformatenforcer.integrations.transformers as grammar
+
+        grammar_sha256 = hashlib.sha256(Path(grammar.__file__).read_bytes()).hexdigest()
 
         manifest = json.loads(
             (model_dir / "cashproof-manifest.json").read_text(encoding="utf-8")
@@ -33,6 +31,7 @@ class CandidateModel:
         revisions = {
             "Qwen/Qwen3-VL-2B-Instruct": "89644892e4d85e24eaac8bacfd4f463576704203",
             "Qwen/Qwen3-VL-4B-Instruct": "ebb281ec70b05090aa6165b016eac8ec08e71b17",
+            "Qwen/Qwen3.5-4B": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
         }
         if (
             manifest["repo_id"] not in revisions
@@ -46,6 +45,25 @@ class CandidateModel:
         if manifest["repo_id"] == "Qwen/Qwen3-VL-2B-Instruct":
             expected = {
                 "model.safetensors": "7de1838c87a5349b016c26a1c3f7d2bc400a3d485f95ef39a7059ffd734977a0"
+            }
+        self.non_thinking = manifest["repo_id"] == "Qwen/Qwen3.5-4B"
+        if self.non_thinking:
+            if transformers.__version__ != "5.20.1":
+                raise ValueError(
+                    "Qwen3.5 experiment requires isolated Transformers 5.20.1"
+                )
+            if not compact:
+                raise ValueError("Qwen3.5 requires the bounded compact experiment")
+            if (
+                grammar_sha256
+                != "e860c15add51ef0049b2de546d653b56a92eca71417394c43045467e7f9f9479"
+            ):
+                raise ValueError(
+                    "Qwen3.5 requires the pinned upstream grammar integration"
+                )
+            expected = {
+                "model.safetensors-00001-of-00002.safetensors": "26a93f066e1916adb13453dae5a0c707c0fbc71299ed98779571a907b8e74c61",
+                "model.safetensors-00002-of-00002.safetensors": "cb544bd9bfae93dc59b0f22b292f5933573854a7f9b97835c67060d7d910e188",
             }
         if not set(expected) <= {f["path"] for f in manifest["files"]}:
             raise ValueError("Missing pinned candidate weight entries")
@@ -71,6 +89,27 @@ class CandidateModel:
                     Path(__file__).read_bytes()
                 ).hexdigest(),
                 "bitsandbytes": "0.48.1",
+                "transformers": transformers.__version__,
+                "torch": torch.__version__,
+                "enable_thinking": False if self.non_thinking else None,
+                "grammar_integration_sha256": grammar_sha256,
+                "grammar_upstream_revision": "817f944fcc8851917c40300a47f62d1defc3ffc3"
+                if self.non_thinking
+                else None,
+                "dependency_versions": {
+                    package: version(package)
+                    for package in (
+                        "accelerate",
+                        "bitsandbytes",
+                        "huggingface-hub",
+                        "lm-format-enforcer",
+                        "numpy",
+                        "Pillow",
+                        "safetensors",
+                        "tokenizers",
+                        "transformers",
+                    )
+                },
                 "quantization": "NF4 double, BF16 compute, visual module unquantized",
                 "image_max_edge": 848,
                 "screening_max_pixels": 131072,
@@ -125,7 +164,7 @@ class CandidateModel:
         self.processor = AutoProcessor.from_pretrained(
             str(model_dir), local_files_only=True, trust_remote_code=False
         )
-        self.tokenizer_data = build_token_enforcer_tokenizer_data(
+        self.tokenizer_data = grammar.build_token_enforcer_tokenizer_data(
             self.processor.tokenizer
         )
         quantization = BitsAndBytesConfig(
@@ -135,7 +174,15 @@ class CandidateModel:
             bnb_4bit_use_double_quant=True,
             llm_int8_skip_modules=["visual", "lm_head"],
         )
-        self.model = Qwen3VLForConditionalGeneration.from_pretrained(
+        if self.non_thinking:
+            from transformers import Qwen3_5ForConditionalGeneration
+
+            model_class = Qwen3_5ForConditionalGeneration
+        else:
+            from transformers import Qwen3VLForConditionalGeneration
+
+            model_class = Qwen3VLForConditionalGeneration
+        self.model = model_class.from_pretrained(
             str(model_dir),
             local_files_only=True,
             trust_remote_code=False,
@@ -190,7 +237,10 @@ class CandidateModel:
                 {"role": "user", "content": content},
             ]
             text = self.processor.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                **({"enable_thinking": False} if self.non_thinking else {}),
             )
             pixels = self.runtime_configuration[
                 "verification_max_pixels" if verify else "screening_max_pixels"

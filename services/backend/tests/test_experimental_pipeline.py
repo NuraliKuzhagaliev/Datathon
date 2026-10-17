@@ -112,19 +112,26 @@ def test_native_temporal_patches_use_actual_source_pts():
         temporal_patch_times([0.0, 1.0], [0, 9], 2)
 
 
-def test_native_video_uses_actual_vfr_pts_and_restores_processor():
+@pytest.mark.parametrize("checkpoint", ["Qwen3-VL-2B-Instruct", "Qwen3.5-4B"])
+def test_native_video_uses_actual_vfr_pts_and_restores_processor(checkpoint):
     from pathlib import Path
     from PIL import Image
     import torch
+    import transformers
     from transformers import AutoProcessor
 
     root = Path(__file__).resolve().parents[3]
-    if not (root / "models/Qwen3-VL-2B-Instruct/config.json").is_file():
+    assets = root / "models" / checkpoint
+    if checkpoint == "Qwen3.5-4B" and transformers.__version__ != "5.20.1":
+        pytest.skip(
+            "New architecture belongs to the isolated Transformers 5 experiment"
+        )
+    if not (assets / "cashproof-manifest.json").is_file():
         pytest.skip(
             "Optional local processor integration needs provisioned public model assets"
         )
     processor = AutoProcessor.from_pretrained(
-        str(root / "models/Qwen3-VL-2B-Instruct"),
+        str(assets),
         local_files_only=True,
         trust_remote_code=False,
     )

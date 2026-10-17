@@ -36,7 +36,7 @@ No public hostname is provisioned by this source checkout. External HTTPS, organ
 .venv/Scripts/python.exe tools/prepare_dataset.py --dataset private-data/dataset --output private-data/evaluation-manifest.json
 ```
 
-A local human must review related-take groups, adjust the provisional 28/12 unique-video split and set `related_groups_reviewed=true` before evaluation. For the supplied dataset this review was returned and checked: 28 development unique videos (15 positive/13 negative), 12 validation (6/6), 40 groups, no cross-split duplicates. Exact duplicates must stay together; both positive duplicate times remain separate annotations. Do not expose local review notes to this coding chat. Once the split is locked:
+A local reviewer must establish related-take groups before a qualified evaluation. The supplied manifest was returned with `related_groups_reviewed=true`; structural/hash checks pass: 28 development unique videos (15 positive/13 negative), 12 validation (6/6), 40 groups, no cross-split exact duplicates. This flag and duplicate check do not independently establish different-scene or different-view independence. Current measurements are development probes and do not support a generalization claim. Exact duplicates stay together; both positive duplicate times remain separate annotations. Do not expose local review notes to this coding chat. After grouping and the split are established:
 
 ```powershell
 .venv/Scripts/python.exe tools/evaluate.py --manifest private-data/evaluation-manifest.json --model-dir models/Qwen3-VL-2B-Instruct --rules assets/rules/registry.json --output private-data/evaluation --split development
