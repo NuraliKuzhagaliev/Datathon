@@ -175,6 +175,7 @@ def main():
         env={
             "PYTHONPATH": "app",
             "PYTHONNOUSERSITE": "1",
+            "PYTHONDONTWRITEBYTECODE": "1",
             "CASHPROOF_MODEL_DIR": "models/Qwen3-VL-2B-Instruct",
             "CASHPROOF_RULES": "assets/rules/registry.json",
             "CASHPROOF_FFMPEG": "bin/ffmpeg.exe",

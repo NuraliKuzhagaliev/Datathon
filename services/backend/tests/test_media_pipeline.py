@@ -14,7 +14,7 @@ class ScriptedSyntheticModel:
         self.positive, self.invalid, self.excluded = positive, invalid, excluded
         self.calls = 0
 
-    def infer(self, frames, prompt, deadline):
+    def infer(self, frames, prompt, deadline, output_schema=None):
         self.calls += 1
         ids = [f["id"] for f in frames]
         events = []
@@ -108,6 +108,44 @@ def test_invented_frames_fail_after_one_repair(clip, tmp_path, registry):
             clip, tmp_path, "a" * 32, time.time() + 60, lambda **kw: None
         )
     assert model.calls == 2
+
+
+def test_normal_context_without_action_does_not_trigger_dense_verification(
+    clip, tmp_path, registry
+):
+    registry.rules["TEST-A"]["predicates"] = {
+        "context": "Visible context",
+        "action": "Visible trigger",
+    }
+    registry.rules["TEST-A"]["candidate_triggers"] = ["action"]
+
+    class NormalState:
+        calls = 0
+
+        def infer(self, frames, prompt, deadline, output_schema=None):
+            self.calls += 1
+            assert "Candidate=" not in prompt
+            return json.dumps(
+                {
+                    "events": [
+                        {
+                            "rule_id": "TEST-A",
+                            "event_frame_id": frames[0]["id"],
+                            "frame_ids": [frames[0]["id"]],
+                            "applicable": True,
+                            "predicates": {"context": True, "action": False},
+                        }
+                    ],
+                    "visibility_limited": False,
+                }
+            )
+
+    model = NormalState()
+    result, _ = Pipeline(model, registry).run(
+        clip, tmp_path, "a" * 32, time.time() + 60, lambda **kwargs: None
+    )
+    assert model.calls == 1
+    assert result["model_result"]["verdict"] == "no_violation"
 
 
 def test_full_window_coverage():

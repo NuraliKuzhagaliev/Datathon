@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.1",
+  "version": "2026-10-17.2",
   "rules": [
     {
       "public": {
@@ -24,6 +24,9 @@
         "service_still_active": "Visible transaction context establishes service has not ended, not merely a waiting person.",
         "cashier_leaves_workplace": "Visible departure from the work area, not reaching, turning or an in-place movement."
       },
+      "candidate_triggers": [
+        "cashier_leaves_workplace"
+      ],
       "context": "Полная видимая последовательность до и после события; проверка добросовестного объяснения. Не выводить отсутствие из окклюзии.",
       "snapshot": "sources/V1900019680-2026-10-17.ax.txt",
       "template": "Возможный признак несоблюдения пункта 22 Правил № 231. Требуется проверка человеком с учетом контекста; это не юридическое заключение."
@@ -51,6 +54,11 @@
         "cash_counting": "A visible counting action on that incoming cash.",
         "customer_absent": "The entire relevant customer area is visible and the customer is absent during receipt/counting."
       },
+      "candidate_triggers": [
+        "incoming_cash",
+        "cash_counting",
+        "customer_absent"
+      ],
       "context": "Полная видимая последовательность до и после события; проверка добросовестного объяснения. Не выводить отсутствие из окклюзии.",
       "snapshot": "sources/V1900019680-2026-10-17.ax.txt",
       "template": "Возможный признак несоблюдения пункта 20 Правил № 231. Требуется проверка человеком с учетом контекста; это не юридическое заключение."
@@ -76,6 +84,10 @@
         "separate_incoming_documents_visible": "Documents and amounts must be independently legible.",
         "cash_not_received_separately": "Complete visible sequence proves combined receipt."
       },
+      "candidate_triggers": [
+        "separate_incoming_documents_visible",
+        "cash_not_received_separately"
+      ],
       "context": "Полная видимая последовательность до и после события; проверка добросовестного объяснения. Не выводить отсутствие из окклюзии.",
       "snapshot": "sources/V1900019680-2026-10-17.ax.txt",
       "template": "Возможный признак несоблюдения пункта 21 Правил № 231. Требуется проверка человеком с учетом контекста; это не юридическое заключение."
@@ -101,6 +113,10 @@
         "collection_bag_received": "A collection context is established from visible actions.",
         "inspection_omitted": "Complete unobscured start/end prove inspection omission."
       },
+      "candidate_triggers": [
+        "collection_bag_received",
+        "inspection_omitted"
+      ],
       "context": "Полная видимая последовательность до и после события; проверка добросовестного объяснения. Не выводить отсутствие из окклюзии.",
       "snapshot": "sources/V1900019680-2026-10-17.ax.txt",
       "template": "Возможный признак несоблюдения пункта 24 Правил № 231. Требуется проверка человеком с учетом контекста; это не юридическое заключение."
@@ -126,6 +142,11 @@
         "opening_and_counting": "Both opening and recount are visible.",
         "collector_absent": "Full relevant area proves absence, without inferring identity or authorization."
       },
+      "candidate_triggers": [
+        "damaged_collection_bag",
+        "opening_and_counting",
+        "collector_absent"
+      ],
       "context": "Полная видимая последовательность до и после события; проверка добросовестного объяснения. Не выводить отсутствие из окклюзии.",
       "snapshot": "sources/V1900019680-2026-10-17.ax.txt",
       "template": "Возможный признак несоблюдения пункта 25 Правил № 231. Требуется проверка человеком с учетом контекста; это не юридическое заключение."
@@ -152,6 +173,11 @@
         "no_customer_receipt_payment": "Ordinary customer receipt/payment exception is ruled out.",
         "no_supervising_worker_visible": "Complete relevant area and sequence are visible, without identity/permission inference."
       },
+      "candidate_triggers": [
+        "internal_operation",
+        "no_customer_receipt_payment",
+        "no_supervising_worker_visible"
+      ],
       "context": "Полная видимая последовательность до и после события; проверка добросовестного объяснения. Не выводить отсутствие из окклюзии.",
       "snapshot": "sources/V1900019680-2026-10-17.ax.txt",
       "template": "Возможный признак несоблюдения пункта 42 Правил № 231. Требуется проверка человеком с учетом контекста; это не юридическое заключение."

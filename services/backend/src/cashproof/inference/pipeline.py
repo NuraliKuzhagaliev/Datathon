@@ -1,6 +1,8 @@
 from pathlib import Path
 import json
 import uuid
+import copy
+from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from .. import media
 from ..contracts import validate_result
@@ -20,9 +22,9 @@ class ScreenCandidate(BaseModel):
 class Observation(ScreenCandidate):
     complete_context: StrictBool
     exclusion_present: StrictBool
-    observation: str = Field(min_length=1, max_length=1000)
-    counterevidence: list[str] = Field(max_length=8)
-    limitations: list[str] = Field(max_length=8)
+    observation: str = Field(min_length=1, max_length=300)
+    counterevidence: list[Annotated[str, Field(max_length=100)]] = Field(max_length=4)
+    limitations: list[Annotated[str, Field(max_length=100)]] = Field(max_length=4)
 
 
 class WindowOutput(BaseModel):
@@ -50,10 +52,31 @@ def windows(duration, size=14.0, overlap=2.0):
 class Pipeline:
     def __init__(self, model, registry, max_candidates=8):
         self.model, self.registry, self.max_candidates = model, registry, max_candidates
-        self.configuration = configuration(max_candidates)
+        self.configuration = configuration(
+            max_candidates, registry.path, getattr(model, "manifest", None)
+        )
 
     def ask(self, frames, verify, deadline, private_dir):
         schema = WindowOutput if verify else ScreenOutput
+        output_schema = schema.model_json_schema()
+        event_type = "Observation" if verify else "ScreenCandidate"
+        base_event = output_schema.pop("$defs")[event_type]
+        variants = []
+        for rule_id, rule in self.registry.enabled.items():
+            event_schema = copy.deepcopy(base_event)
+            properties = event_schema["properties"]
+            properties["rule_id"] = {"type": "string", "enum": [rule_id]}
+            frame_type = {"type": "string", "enum": [frame["id"] for frame in frames]}
+            properties["event_frame_id"] = frame_type
+            properties["frame_ids"]["items"] = frame_type
+            properties["predicates"] = {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {key: {"type": "boolean"} for key in rule["predicates"]},
+                "required": list(rule["predicates"]),
+            }
+            variants.append(event_schema)
+        output_schema["properties"]["events"]["items"] = {"anyOf": variants}
         mode = (
             "Verify the proposed possible event AND a plausible benign explanation in its full temporal context."
             if verify
@@ -64,11 +87,13 @@ class Pipeline:
             + ' Return ONLY plausible event candidates, never one entry per frame or negative findings. If no plausible event, return {"events":[],"visibility_limited":false} (set visibility_limited truthfully). Keep text brief. Select frame IDs verbatim. event_frame_id must be one of the evidence frame_ids: choose the action instant or first supportable omission, never preceding context. Include before/action/after evidence where available. Evaluate every predicate. Occlusion does not prove an omission. Generic anomalies are not legal violations.\nRules='
             + json.dumps(self.registry.prompt(), ensure_ascii=False)
             + "\nJSON schema="
-            + json.dumps(schema.model_json_schema())
+            + json.dumps(output_schema, separators=(",", ":"))
         )
         if verify:
             prompt += "\nCandidate=" + verify.model_dump_json()
-        raw = self.model.infer(frames, prompt, deadline)
+        else:
+            prompt += "\nFinal instruction: An ongoing service alone is not an event. If none of a rule's candidate_triggers is visibly true, return an empty events array. Never enumerate individual frames or normal ongoing states."
+        raw = self.model.infer(frames, prompt, deadline, output_schema=output_schema)
         # Prompts/outputs stay in ignored per-case storage; exceptions never include them.
         private_dir.mkdir(exist_ok=True)
         for attempt in range(2):
@@ -108,6 +133,7 @@ class Pipeline:
                     prompt
                     + "\nPrevious response failed schema or allowed-ID validation. Return one corrected JSON object only.",
                     deadline,
+                    output_schema=output_schema,
                 )
 
     def run(
@@ -144,7 +170,13 @@ class Pipeline:
             candidates.extend(
                 event
                 for event in output.events
-                if event.applicable and any(event.predicates.values())
+                if event.applicable
+                and any(
+                    event.predicates[key]
+                    for key in self.registry.enabled[event.rule_id].get(
+                        "candidate_triggers", list(event.predicates)
+                    )
+                )
             )
             scope = "Проверяются только включенные категории правил; отрицательный результат не подтверждает соблюдение всех процедур."
             coverage.append(

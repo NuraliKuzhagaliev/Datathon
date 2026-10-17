@@ -6,7 +6,7 @@ from pathlib import Path
 from . import __version__
 
 
-def configuration(max_candidates):
+def configuration(max_candidates, registry_path=None, model_manifest=None):
     root = Path(__file__).resolve().parent
     sources = {
         path.relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
@@ -14,6 +14,10 @@ def configuration(max_candidates):
     }
     value = {
         "backend_version": __version__,
+        "rule_registry_sha256": hashlib.sha256(registry_path.read_bytes()).hexdigest()
+        if registry_path
+        else None,
+        "model_manifest": model_manifest,
         "implementation_sha256": sources,
         "max_candidates": max_candidates,
         "screening_window_sec": 14,
@@ -26,10 +30,12 @@ def configuration(max_candidates):
         "verification_max_pixels": 131072,
         "max_images_per_call": 16,
         "max_input_tokens": 14000,
-        "max_new_tokens": 768,
+        "screening_max_new_tokens": 768,
+        "verification_max_new_tokens": 1024,
         "attention": "sdpa",
         "sampling": False,
         "bounded_repairs": 1,
+        "json_grammar": "lm-format-enforcer==0.11.3",
     }
     value["configuration_sha256"] = hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()

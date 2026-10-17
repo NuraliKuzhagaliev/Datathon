@@ -2,7 +2,7 @@
 
 Local video review for possible cashier-procedure violations, with source-linked evidence and a separate human decision.
 
-**Status:** real local GPU upload-to-result works; the longest supplied video completed in 173.01 seconds. Nineteen backend tests pass. Five queued four-second synthetic uploads completed in 4.36–10.94 seconds. Model accuracy, portable runtime qualification, web/desktop integration and public HTTPS remain gates in [verification](docs/integration/verification.md). This checkout is not a completed competition submission.
+**Status:** real local GPU upload-to-result works; backend 0.2.0 processed the longest supplied video in 173.01 seconds. Twenty backend tests pass. Backend 0.3.0 completed five queued four-second synthetic uploads in 4.85–9.94 seconds. Detection quality is currently inadequate: a four-video development sample missed both positives. Full development evaluation and private category review are in progress. Portable runtime qualification, web/desktop integration and public HTTPS remain gates in [verification](docs/integration/verification.md). This checkout is not a completed competition submission.
 
 ## Backend setup
 

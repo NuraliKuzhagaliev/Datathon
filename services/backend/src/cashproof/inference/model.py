@@ -50,9 +50,17 @@ class LocalQwen:
         self.version = (
             f"{manifest['repo_id']}@{manifest['revision']};backend={__version__}"
         )
+        self.manifest = manifest
         self.torch = torch
         self.processor = AutoProcessor.from_pretrained(
             str(model_dir), local_files_only=True, trust_remote_code=False
+        )
+        from lmformatenforcer.integrations.transformers import (
+            build_token_enforcer_tokenizer_data,
+        )
+
+        self.tokenizer_data = build_token_enforcer_tokenizer_data(
+            self.processor.tokenizer
         )
         self.model = Qwen3VLForConditionalGeneration.from_pretrained(
             str(model_dir),
@@ -63,7 +71,7 @@ class LocalQwen:
             attn_implementation="sdpa",
         ).eval()
 
-    def infer(self, frames, instruction, deadline):
+    def infer(self, frames, instruction, deadline, output_schema=None):
         if len(frames) > 16:
             raise ProcessingError(
                 "RESOURCE_EXHAUSTED", "Per-call image budget exceeded"
@@ -84,7 +92,7 @@ class LocalQwen:
         messages = [
             {
                 "role": "system",
-                "content": "Inspect only visible actions. No identity, intent, audio, ledger claims or invented rules. Return strict JSON only.",
+                "content": "Inspect only visible actions. Abstract patterns or a scene without the required people are not applicable. Presence of a person or an ongoing service is not itself an event. No identity, intent, audio, ledger claims or invented rules. Return strict JSON only.",
             },
             {"role": "user", "content": content},
         ]
@@ -108,6 +116,18 @@ class LocalQwen:
         remaining = deadline - time.time()
         if remaining <= 0:
             raise ProcessingError("DEADLINE_EXCEEDED", "Deadline exceeded")
+        generation = {}
+        if output_schema:
+            from lmformatenforcer import JsonSchemaParser
+            from lmformatenforcer.integrations.transformers import (
+                build_transformers_prefix_allowed_tokens_fn,
+            )
+
+            generation["prefix_allowed_tokens_fn"] = (
+                build_transformers_prefix_allowed_tokens_fn(
+                    self.tokenizer_data, JsonSchemaParser(output_schema)
+                )
+            )
         with self.torch.inference_mode():
             ids = self.model.generate(
                 **inputs,
@@ -115,9 +135,10 @@ class LocalQwen:
                 temperature=None,
                 top_p=None,
                 top_k=None,
-                max_new_tokens=768,
+                max_new_tokens=1024 if "Candidate=" in instruction else 768,
                 max_time=remaining,
                 use_cache=True,
+                **generation,
             )
         result = self.processor.batch_decode(
             ids[:, inputs["input_ids"].shape[-1] :], skip_special_tokens=True

@@ -115,6 +115,9 @@ for rule_id, name, clause, applicability, predicates, exclusions, enabled in ent
                 "source_sha256": sha,
             },
             "predicates": predicates,
+            "candidate_triggers": ["cashier_leaves_workplace"]
+            if rule_id == "NB231-22"
+            else list(predicates),
             "context": "Полная видимая последовательность до и после события; проверка добросовестного объяснения. Не выводить отсутствие из окклюзии.",
             "snapshot": "sources/" + source.name,
             "template": f"Возможный признак несоблюдения пункта {clause} Правил № 231. Требуется проверка человеком с учетом контекста; это не юридическое заключение.",
@@ -122,7 +125,7 @@ for rule_id, name, clause, applicability, predicates, exclusions, enabled in ent
     )
 (ROOT / "assets/rules/registry.json").write_text(
     json.dumps(
-        {"version": "2026-10-17.1", "rules": rules}, ensure_ascii=False, indent=2
+        {"version": "2026-10-17.2", "rules": rules}, ensure_ascii=False, indent=2
     ),
     encoding="utf-8",
 )

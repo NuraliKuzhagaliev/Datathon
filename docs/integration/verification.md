@@ -21,7 +21,24 @@ The Windows sandbox blocks asyncio's internal loopback socket pair; HTTP tests w
 
 The first larger-visual-context longest-video run failed at the watchdog after 272.09 seconds with `DEADLINE_EXCEEDED`; it did not return a clean verdict. The measured successful configuration uses 14/2-second screening windows, at most 16 images per call, lower per-stage pixel budgets and sparse wide context anchors with denser action sampling. This speed improvement has not established equal or better detection quality. The earlier compact-prompt synthetic vertical slice completed in 3.162 seconds; performance changes are not a quality ablation.
 
-## Still required
+## Backend 0.3.0 development findings
+
+The first full development attempt on 0.2.0 was interrupted after four finished videos: one completed negative (TN=1), three technical failures. Structural diagnostics found truncated JSON and oversized evidence-ID lists. Private content was not returned to the coding chat. This partial attempt is not an accuracy estimate.
+
+0.3.0 adds local grammar-constrained JSON and action-trigger gating. Twenty backend tests pass (9.27 seconds), including the new normal-context/no-action regression. The five-queued synthetic API run `8610c726d0724105bc457a0c387f15f6` completed 5/5 with no failures: admission 0.267–0.269 seconds, completion 4.852–9.935 seconds, median 7.397; startup 29.175 seconds. Python external networking was denied.
+
+The same four development videos then completed without technical failures (`a9434a2e50ca45a68c85b9a38603e8d7`), but both positives were missed: TP=0, TN=2, FP=0, FN=2; recall 0/2, precision undefined (no positive predictions), balanced accuracy 0.5, no timestamp matches. Median processing 9.639 seconds, max 13.955. Detection quality is inadequate. The positive duplicate's two annotations remain separate; event-type ground truth is absent.
+
+| Engineering experiment, same four development videos | Completed | Technical failures | Observed detection result |
+| --- | --- | --- | --- |
+| 0.2.0 baseline, interrupted after four | 1/4 | 3/4 | One TN; insufficient completed class coverage |
+| 0.3.0 grammar + action-trigger gating | 4/4 | 0/4 | TP 0, TN 2, FP 0, FN 2 |
+
+This is a combined engineering comparison, not an isolated temporal-verification quality ablation. Full 28-video development evaluation is running. A second private local review page contains the 15 positive development examples for human taxonomy/applicability review; validation remains unopened. Expanding rules or asserting model quality before that evidence would be unsupported.
+
+Portable 0.3.0-rc1 assembled with 20,526 hashed files. The final candidate will also include the complete model/registry configuration snapshot and bytecode-disabled launch environment. Neither assembly nor successful imports qualifies it as offline-tested. The Windows Firewall verification script parses successfully, but current Windows privileges are not Administrator, so its OS-level test has not run.
+
+## Remaining qualification gates
 
 - Complete development evaluation, establish useful private taxonomy/coverage with local review, freeze configuration, then run locked validation. No broad accuracy or blind-validation number is claimed yet.
 - Measure five queued long-video jobs if that concurrency is required. Current short-video results do not support increasing production admission.

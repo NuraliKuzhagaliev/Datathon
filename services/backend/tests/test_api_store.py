@@ -200,7 +200,7 @@ def test_worker_oom_is_a_technical_failure(client, clip, settings, monkeypatch):
         def __init__(self, path):
             pass
 
-        def infer(self, *args):
+        def infer(self, *args, **kwargs):
             raise MemoryError("Synthetic resource exhaustion")
 
     class Channel:

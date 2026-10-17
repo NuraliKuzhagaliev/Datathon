@@ -29,7 +29,25 @@ def main():
     p.add_argument("--rules", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--split", choices=["development", "validation"], required=True)
+    p.add_argument(
+        "--max-videos",
+        type=int,
+        help="Development-only engineering sample; never a full evaluation",
+    )
+    p.add_argument(
+        "--freeze-from",
+        type=Path,
+        help="Required for validation: completed development aggregate with the exact frozen configuration",
+    )
     a = p.parse_args()
+    if a.split == "validation" and not a.freeze_from:
+        raise ValueError(
+            "Validation requires --freeze-from with the frozen development configuration"
+        )
+    if a.max_videos is not None and (a.split != "development" or a.max_videos < 1):
+        raise ValueError(
+            "A partial run is permitted only for a positive development sample size"
+        )
     manifest = json.loads(a.manifest.read_text(encoding="utf-8"))
     if not manifest.get("related_groups_reviewed"):
         raise ValueError(
@@ -41,6 +59,8 @@ def main():
     for row in rows:
         source = Path(row["path"]).resolve()
         digest = hashlib.sha256(source.read_bytes()).hexdigest()
+        if digest != row["sha256"]:
+            raise ValueError("Reviewed source hash changed")
         by_hash[digest].append(row)
         groups[row["group"]].add(row["split"])
     if any(len(g) > 1 for g in groups.values()):
@@ -53,6 +73,18 @@ def main():
     model = LocalQwen(a.model_dir)
     registry = Registry(a.rules)
     pipeline = Pipeline(model, registry)
+    if a.freeze_from:
+        frozen = json.loads(a.freeze_from.read_text(encoding="utf-8"))
+        if frozen.get("partial_evaluation") or frozen.get("split") != "development":
+            raise ValueError("Freeze from a full development run")
+        if (
+            frozen["configuration"] != pipeline.configuration
+            or frozen["manifest_sha256"]
+            != hashlib.sha256(a.manifest.read_bytes()).hexdigest()
+        ):
+            raise ValueError(
+                "Frozen implementation, rule/model assets or reviewed split changed"
+            )
     run_id = uuid.uuid4().hex
     out = a.output / run_id
     out.mkdir(parents=True)
@@ -64,8 +96,11 @@ def main():
     failure_latency = []
     evidence_frames = 0
     selected = [rs for rs in by_hash.values() if rs[0]["split"] == a.split]
+    if a.max_videos:
+        selected = selected[: a.max_videos]
+    selected_hashes = {rs[0]["sha256"] for rs in selected}
     for digest, rs in by_hash.items():
-        if rs[0]["split"] != a.split:
+        if digest not in selected_hashes:
             continue
         label_rows += len(rs)
         directory = out / digest
@@ -110,7 +145,8 @@ def main():
             code = getattr(error, "code", "PROCESSING_FAILED")
             failure_codes[code] += 1
             (directory / "failure.json").write_text(
-                json.dumps({"technical_failure": True}), encoding="utf-8"
+                json.dumps({"technical_failure": True, "error_code": code}),
+                encoding="utf-8",
             )
         print(
             json.dumps(
@@ -131,6 +167,7 @@ def main():
     metrics = {
         "run_id": run_id,
         "split": a.split,
+        "partial_evaluation": bool(a.max_videos),
         "model_version": model.version,
         "configuration": pipeline.configuration,
         "rule_version": registry.version,
@@ -153,11 +190,7 @@ def main():
         "failure_rate": ratio(failures, completed + failures),
         "recall_including_failures_lower_bound": ratio(
             tp,
-            sum(
-                int(rs[0]["label"])
-                for rs in by_hash.values()
-                if rs[0]["split"] == a.split
-            ),
+            sum(int(rs[0]["label"]) for rs in selected),
         ),
         "timestamp_mae_sec": statistics.mean(time_errors) if time_errors else None,
         "timestamp_annotation_denominator": len(time_errors),

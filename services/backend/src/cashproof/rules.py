@@ -29,6 +29,9 @@ class Registry:
                     raise ValueError("Rule snapshot hash mismatch")
                 if not r["public"]["effective_date"] or not r.get("predicates"):
                     raise ValueError("Rule lacks effective date or predicates")
+                triggers = r.get("candidate_triggers", list(r["predicates"]))
+                if not triggers or not set(triggers) <= set(r["predicates"]):
+                    raise ValueError("Rule candidate trigger lacks a defined predicate")
 
     @property
     def enabled(self):
@@ -46,6 +49,9 @@ class Registry:
                 "rule_id": k,
                 "applicability": v["public"]["applicability"],
                 "predicates": v["predicates"],
+                "candidate_triggers": v.get(
+                    "candidate_triggers", list(v["predicates"])
+                ),
                 "context": v["context"],
                 "exclusions": v["public"]["exclusions"],
             }
