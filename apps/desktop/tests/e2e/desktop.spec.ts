@@ -36,7 +36,7 @@ test('synthetic local process handshake, Unicode paths, in-memory key and shutdo
   copyFileSync('apps/desktop/tests/fake-backend.cjs', path.join(backend, 'fake-backend.cjs'));
   writeFileSync(path.join(backend,'launch.json'),JSON.stringify({contract_version:'1.0.0',executable:'node.exe',args_prefix:['fake-backend.cjs'],cwd:'.',env:{}}));
   const app = await electron.launch({args:[path.resolve('apps/desktop')],env:{...process.env,CASHPROOF_DESKTOP_TEST:'1',CASHPROOF_DESKTOP_TEST_ROOT:root}});
-  let url = '';
+  let url = ''; let exited = false;
   try {
     const launcher = await app.firstWindow();
     const opened = app.waitForEvent('window'); await launcher.locator('#local').click();
@@ -55,7 +55,25 @@ test('synthetic local process handshake, Unicode paths, in-memory key and shutdo
     expect(await viewer.evaluate(() => JSON.stringify(localStorage))).toBe('{"cashproof.language":"en"}');
     await viewer.getByRole('button',{name:'Русский',exact:true}).click();
     await viewer.screenshot({path:'apps/desktop/dist/qa-local-synthetic.png'});
-  } finally { await app.close(); }
+    // Stub the native choice only in this test; exercise the real unload and
+    // quit handlers, retaining the synthetic owned backend when the user stays.
+    await app.evaluate(({dialog}) => {
+      (globalThis as any).discardDraft = false; (globalThis as any).unloadPrompts = 0;
+      dialog.showMessageBoxSync = () => { (globalThis as any).unloadPrompts++; return (globalThis as any).discardDraft ? 1 : 0; };
+    });
+    await viewer.evaluate(() => window.addEventListener('beforeunload', event => { event.preventDefault(); event.returnValue = ''; }));
+    await app.evaluate(({app}) => app.quit());
+    await expect.poll(() => app.evaluate(() => (globalThis as any).unloadPrompts)).toBe(1);
+    expect(viewer.isClosed()).toBe(false);
+    expect((await fetch(`${url}/health/ready`)).ok).toBe(true);
+    await viewer.evaluate(() => (window as any).cashproof.showLauncher());
+    await expect.poll(() => app.evaluate(() => (globalThis as any).unloadPrompts)).toBe(2);
+    expect(viewer.isClosed()).toBe(false);
+    expect((await fetch(`${url}/health/ready`)).ok).toBe(true);
+    const closed = app.waitForEvent('close');
+    await app.evaluate(({app}) => { (globalThis as any).discardDraft = true; setTimeout(() => app.quit(), 50); });
+    await closed; exited = true;
+  } finally { if (!exited) await app.close(); }
   await expect.poll(async () => { try { await fetch(`${url}/health/ready`,{signal:AbortSignal.timeout(1000)}); return false; } catch { return true; } }).toBeTruthy();
 });
 

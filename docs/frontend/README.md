@@ -1,5 +1,19 @@
 # CashProof web and desktop — Codex B
 
+## Review workflow update — 18 October 2026
+
+`codex/frontend-polish` incorporates the common integration revision `ea69728532a07d7bf9da85ee321f542c389c63b5`. Existing deployment configuration, API contract 1.0.0, license notices and backend resource verification are preserved.
+
+- The compact case overview filters the actual server list into all cases, detected signs, processing, no signs and technical failures. Counts describe automatic results and processing status, not completed human reviews. Filename/ID search, date/name sorting and a clear-filter action help find work quickly.
+- Review drafts survive event, case and page navigation within the authenticated session. They remain in memory only. Polling does not overwrite edits; successful PUT acknowledgements immediately update the saved decision and timestamp. An acknowledgement for another event is rejected. ZIP export still includes server-saved decisions only.
+- Refresh/close warns when drafts exist; disconnect requires a deliberate discard. Windows also asks before leaving the viewer. Cancelling application exit or switching mode keeps the owned backend alive; accepted shutdown stops it. Abrupt process termination cannot preserve in-memory drafts.
+- Upload offers a muted local preview and available duration/dimensions before any transfer. Unsupported browser codecs do not block server validation. Replacing/removing/closing the selection releases its Blob URL. Multi-file drops are rejected instead of silently taking one file.
+- New web UI text supports RU/EN. The desktop native confirmation follows the existing Russian launcher. At desktop widths the save toolbar stays inside the scrolling evidence panel.
+
+The checked web build is `apps/web/dist`. The separate connected Windows build is `apps/desktop/dist/connected-polish/win-unpacked`; transfer the whole folder. Reproduce after `pnpm build:web` with `node apps/desktop/scripts/package.mjs --connected --output-name connected-polish`. This connected build contains no model runtime.
+
+Release integrator A should merge the frontend PR into the current `codex/integration` and use the existing deployment process, then rebuild the full desktop package on the prepared GPU host. This branch does not publish routing changes or replace the running service. Verification and remaining scope are recorded in [QA.md](QA.md). Native unload handling follows the [Electron webContents lifecycle](https://www.electronjs.org/docs/latest/api/web-contents#event-will-prevent-unload).
+
 **Актуализация общего аудита 17 октября 2026.** Исторические утверждения ниже относятся к состоянию B до интеграции. Полный backend-комплект и реальные прогоны на A уже существуют. Текущая доступность API, качество модели и открытые проверки описаны в [общем акте](../integration/PROJECT_STATUS.md); они не подтверждаются ранними синтетическими тестами.
 
 ## Setup

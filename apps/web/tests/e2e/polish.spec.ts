@@ -96,6 +96,23 @@ test('incorrect review acknowledgement preserves draft; old polling cannot rever
   await expect(page.getByRole('heading',{name:'Обнаружены признаки возможных нарушений',exact:true})).toBeVisible();
 });
 
+test('save action stays inside the scrollable evidence panel with a long unsaved note', async ({ page }) => {
+  await page.goto('/?demo=1#case=synthetic-positive');
+  await page.getByText('Заметка проверяющего · добавить',{exact:true}).click();
+  await page.getByLabel('Заметка',{exact:true}).fill('Synthetic note. '.repeat(100));
+  await page.locator('.desk').scrollIntoViewIfNeeded();
+  await page.locator('.detail-body').evaluate(element => { element.scrollTop = 0; });
+  const bounds = await page.locator('.detail-panel').boundingBox();
+  const button = page.getByRole('button',{name:'Сохранить решение',exact:true});
+  const action = await button.boundingBox();
+  expect(action!.y + action!.height).toBeLessThanOrEqual(bounds!.y + bounds!.height);
+  expect(action!.y).toBeGreaterThanOrEqual(bounds!.y);
+  expect(await button.evaluate(element => { const r = element.getBoundingClientRect(); return element.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); })).toBe(true);
+  await page.screenshot({path:'apps/web/dist/qa-polish-sticky-save.png',fullPage:true});
+  await button.click();
+  await expect(page.locator('.save-message')).toContainText('Сохранено в памяти демо');
+});
+
 test('local upload preview sends no file, releases Blob URLs and permits unsupported browser codecs', async ({ page }) => {
   let uploads = 0;
   await page.addInitScript(() => { const revoke = URL.revokeObjectURL; (window as any).previewRevoked = 0; URL.revokeObjectURL = value => { (window as any).previewRevoked++; revoke(value); }; });
