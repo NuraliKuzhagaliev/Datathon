@@ -2,7 +2,7 @@
 
 Local video review for possible cashier-procedure violations, with source-linked evidence and a separate human decision.
 
-**Status at common audit, 18 October 2026:** backend 0.3.2 and the React/Electron frontend are integrated on contract 1.0.0. The new private portable bundle and full Windows package passed integrity and real-model execution checks. The local API is restored from that bundle with original credentials. Public API routing still awaits publication of the prepared replacement rewrites; the static site remains the earlier build. Full development evaluation completed: production recall 0/15; Qwen3.5-4B is rejected with 12/28 technical failures and no successful positive detections. Useful recognition, independent access, disconnected desktop qualification and redistribution review remain open. See the [whole-project status](docs/integration/PROJECT_STATUS.md), [acceptance matrix](docs/frontend/INTEGRATION_CHECKLIST.md) and [executed evidence](docs/integration/verification.md).
+**Status at common audit, 18 October 2026:** backend 0.3.2 and the React/Electron frontend are integrated on contract 1.0.0. The new private portable bundle and full Windows package passed integrity and real-model execution checks. The local API is restored from that bundle with original credentials. Public API routing still awaits publication of the prepared replacement rewrites; the updated static site is published and all 11 public files match the checked local build. Full development evaluation completed: production recall 0/15; Qwen3.5-4B is rejected with 12/28 technical failures and no successful positive detections. Useful recognition, independent access, disconnected desktop qualification and redistribution review remain open. See the [whole-project status](docs/integration/PROJECT_STATUS.md), [acceptance matrix](docs/frontend/INTEGRATION_CHECKLIST.md) and [executed evidence](docs/integration/verification.md).
 
 ## Backend setup
 
@@ -76,3 +76,9 @@ The [architecture](docs/backend/architecture.md), [integration evidence](docs/in
 The current public route is Vercel CDN → Cloudflare Tunnel → local inference. The human approved real-video transport after disclosure; organizer approval is not recorded. Historical synthetic and real uploads passed through the earlier public route from this host; that upstream is now dead and replacement rewrites are not yet published. An independent client/network and continuous jury-window availability remain unverified. The temporary upstream changes on restart; update both project routing rules before use. This route is an integration service, not a competition-readiness claim.
 
 CashProof is a working title and does not imply ForteBank endorsement.
+
+## Published static build, 18 October 2026
+
+The existing production alias now serves the Git build from a1fa9d2a44a3c5c5953302460a8d75d6da09953e, deployment82s7f2A3sLFQg8eXEugSp9UG4zaR (Ready,18s). All11 public files (736,036bytes) were fetched anonymously and matched the corrected Windows build byte-for-byte; security headers and absence of actual credential values were checked. Public login rendered without accessing private cases. Explicit LF attributes preserve identical static/license bytes on Windows and Linux. The earlier prepared Drop directory is retained as historical and is not the final public fingerprint.
+
+The owner prioritizes an accurate single service. API/health are two technical paths of that one service, not competing models. The latest response did not approve routing Publish; both rewrites remain Draft while recognition quality is unresolved. The local portable API/tunnel are ready, but current public API readiness is false. No claim of universally correct diagnosis is made.

@@ -2,7 +2,7 @@
 
 Updated 18 October 2026. The current state below supersedes historical successful 0.3.1 HTTPS measurements.
 
-Production alias: https://cashproof-web.vercel.app . Existing project: cashproof-web, Lord Hobby (lord-b46e), account nuralikuzhagaliev. The published static build is the old e03e5a9 frontend. The local API is restored from checked portable backend 0.3.2, original credentials retained; it is not yet reconnected to the production alias.
+Production alias: https://cashproof-web.vercel.app . Existing project: cashproof-web, Lord Hobby (lord-b46e), account nuralikuzhagaliev. The updated static build is published from a1fa9d2; all 11 files match the checked local build. The local API is restored from checked portable backend 0.3.2, original credentials retained; it is not yet reconnected to the production alias.
 
 ## Routing publication pending
 
@@ -31,4 +31,10 @@ Historical 0.3.1 HTTPS receipts documented a synthetic analysis/export in 5.937 
 
 Keys are in ignored runtime-data/team-server/credentials.json. Enter operator locally; jury only uploads/polls. Never paste values or real-case outputs into coding chats, issues or Git. See [common status](PROJECT_STATUS.md) and [A to B](A_TO_B_STATUS.md).
 
-Git deployment configuration is now saved in the existing Vercel project: the provided Datathon repository is connected, production tracks codex/integration, Node24/Other/root repository, frozen pnpm install, build:web and apps/web/dist. The checked-in vercel.json preserves the prior static security headers. The new production build is pending; these settings alone are not a deployment receipt. API/health routing remains separately unpublished Draft.
+Git deployment configuration is now saved in the existing Vercel project: the provided Datathon repository is connected, production tracks codex/integration, Node24/Other/root repository, frozen pnpm install, build:web and apps/web/dist. The checked-in vercel.json preserves the prior static security headers. The production build completed; the receipt below records current static verification. API/health routing remains separately unpublished Draft.
+
+## Published static build, 18 October 2026
+
+The existing production alias now serves the Git build from a1fa9d2a44a3c5c5953302460a8d75d6da09953e, deployment82s7f2A3sLFQg8eXEugSp9UG4zaR (Ready,18s). All11 public files (736,036bytes) were fetched anonymously and matched the corrected Windows build byte-for-byte; security headers and absence of actual credential values were checked. Public login rendered without accessing private cases. Explicit LF attributes preserve identical static/license bytes on Windows and Linux. The earlier prepared Drop directory is retained as historical and is not the final public fingerprint.
+
+The owner prioritizes an accurate single service. API/health are two technical paths of that one service, not competing models. The latest response did not approve routing Publish; both rewrites remain Draft while recognition quality is unresolved. The local portable API/tunnel are ready, but current public API readiness is false. No claim of universally correct diagnosis is made.
