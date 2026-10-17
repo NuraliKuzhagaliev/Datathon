@@ -1,0 +1,12 @@
+# Replace YOUR-TEAM-HOST only after a team-controlled direct HTTPS route exists.
+# Bind the backend to loopback behind Caddy. No relay service is assumed.
+YOUR-TEAM-HOST {
+    request_body {
+        max_size 129MB
+    }
+    reverse_proxy 127.0.0.1:8000 {
+        transport http {
+            response_header_timeout 290s
+        }
+    }
+}
