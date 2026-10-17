@@ -9,11 +9,13 @@ Date: 17 October 2026. All browser-visible data is synthetic. No supplied bank f
 | Type generation from OpenAPI 1.0.0 | Passed; 22 generated JSON validators and generated TypeScript declarations |
 | TypeScript compilation | Passed |
 | Unit checks | 38 passed: schema/integrity, time mapping, safe URLs, HTTP error/auth/download behavior, 7 text contrast pairs, immutable demo localization, English catalog coverage and interpolated errors |
-| Desktop pure security checks | 3 passed: HTTPS/loopback policy, official-source policy, contained paths with spaces and Cyrillic |
+| Desktop pure security checks | 5 passed: HTTPS/loopback policy, official-source policy, contained paths with spaces and Cyrillic, fixed Python module arguments and typed contract mismatch |
 | Development browser scenarios | 19 passed in Microsoft Edge: positive/negative/pending/failure states, multi-event keyboard navigation, rules, note/review, upload, media mapping, export, cleanup, modal focus, RU/EN switching and persistence, unchanged server data, blocked storage and English desktop/mobile layouts |
 | Responsive evidence desk | Checked at 1440×900, 1366×768, 1024×768, 390×844; no page horizontal overflow; evidence and save action stay within width |
 | Production browser scenarios | 2 passed: local assets/CSP/no demo and rejection of synthetic backend result |
 | Web release build | Passed; static files emitted to apps/web/dist |
+| Production UI + A's API | 3 passed: generated video and scripted test model; positive, negative, failure; real auth/storage/media/review/export routes |
+| A's existing backend tests | 20 passed against A `1d10013`; separate from B's check count; no GPU inference |
 
 Counts refer to recorded successful runs; rerun the documented commands after integration. Screenshots and reports are build artifacts and are ignored by Git. Build commands clear `apps/web/dist`, so capture/report files can be regenerated with `pnpm test:e2e`.
 
@@ -29,27 +31,36 @@ AJV runtime compilation initially conflicted with CSP. Validators now compile at
 
 Electron 44.9.0 was downloaded from its official release URL and checked against the checksum shipped in the npm package: SHA-256 `88e08039d0ef359bab9f674e8051fa103bd8628ea7c5a5e1daaa610a8a0c6931`.
 
-`pnpm test:desktop` passed all 3 scenarios:
+`pnpm test:desktop` passed all 4 scenarios:
 
 1. Launcher, missing-bundle message, connection to a synthetic local HTTP server, restricted preload bridge and renderer isolation, return to launcher.
 2. A synthetic Node HTTP child launched through the exact manifest/args/environment handshake, from a directory with spaces and Cyrillic. The same production React build opened using the per-launch key; no key was stored in localStorage. After app shutdown, the child HTTP endpoint was unreachable.
 3. The actual packaged `CashProof Connected.exe` launched successfully and displayed the missing-offline-resources state.
+4. An incompatible health contract version fails promptly and restores launcher controls; the error does not disappear into the model-readiness retry loop.
 
 `pnpm build:desktop:connected` completed. Output: `apps/desktop/dist/connected/win-unpacked/CashProof Connected.exe`. Copy the entire `win-unpacked` folder, including `resources`, DLLs, locales and licenses. The EXE alone is insufficient.
 
-Latest recorded automated checks: **65** (38 unit + 3 desktop pure security + 19 development browser + 2 production browser + 3 Electron runtime). Tests use a synthetic local process, not Python/model inference. The connected-only build cannot perform offline inference by itself. Full offline packaging requires A's bundle and is intentionally gated.
+Latest recorded B checks: **71** (38 unit + 5 desktop pure security + 19 development browser + 2 production browser + 4 Electron runtime + 3 browser/backend integration). Additionally, **20** existing A tests passed locally. Desktop lifecycle uses a synthetic Node process; the integration suite uses A's real Python API/media pipeline with a scripted test model. Neither runs Qwen. The connected-only build cannot perform offline inference by itself. Full offline packaging requires A's bundle and is intentionally gated.
 
 The initial automatic approval attempt for the final desktop check timed out before execution. One retry was approved and completed; there is no outstanding approval blocker.
 
 ## Not yet established
 
-- Connection to Codex A's real API; upload → actual inference → actual evidence → actual review persistence/export.
+- Connection to Codex A's deployed GPU service; upload → actual model inference → real competition evidence. API/storage/media/review/export were exercised locally with synthetic inputs as recorded below.
 - Performance, detection quality, current legal-source correctness or unseen-camera generalization.
 - Real MOV source/preview synchronization, verified privately by a human.
 - Actual model startup, GPU memory, worker crash recovery and offline processing on the RTX 4060 host.
 - Public HTTPS reachability, judging-time availability or final branch merge.
 
-Neither passing mocks nor a packaged UI proves these items.
+Neither passing mocks, a synthetic integration run nor a packaged UI proves these items.
+
+## Integration and publication checkpoint
+
+Frontend is published in `codex/frontend`, initial implementation commit `9f3716c`. The dry merge against backend `1d10013` passed without file conflicts; `main` has not been merged. Full procedure, exact backend revision, dependency setup and executed assertions: [BACKEND_INTEGRATION.md](BACKEND_INTEGRATION.md).
+
+The fixed module launch and contract mismatch behavior are covered by pure and Electron tests. The connected Windows folder was rebuilt. Packaging now includes only production web assets, excluding QA screenshots and reports. Shared contracts and all A-owned implementation files remain unchanged in B's branch.
+
+One development browser run had 18 passes and one failure: editing the Python integration harness during the run triggered a Vite page reload at the same timestamp, clearing the in-memory session. With no concurrent edits the affected scenario passed three consecutive runs. Vite now ignores test harnesses and generated reports; Playwright's HTML report path is absolute to avoid a nested output folder. The subsequent complete run passed all 19 scenarios in 41.9 seconds. Run browser checks without editing app files concurrently. The release API integration was unaffected.
 
 ## Forte theme rerun
 

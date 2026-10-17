@@ -2,7 +2,13 @@
 
 Frontend implementation consumes contract 1.0.0 without changing shared files. This is a request log, not evidence that the backend has been integrated.
 
-The concrete joint procedure is now in [INTEGRATION_CHECKLIST.md](INTEGRATION_CHECKLIST.md), with 18 acceptance checks and a result template. [HANDOFF_TO_A.txt](HANDOFF_TO_A.txt) is a concise message prepared for the teammate; it has not been sent. The [three-minute demo](PITCH.md) distinguishes current synthetic rehearsal from a verified model demonstration. Before merging, B's current local implementation must be handed over in an agreed Git commit.
+The concrete joint procedure is now in [INTEGRATION_CHECKLIST.md](INTEGRATION_CHECKLIST.md), with 18 acceptance checks and a result template. [HANDOFF_TO_A.txt](HANDOFF_TO_A.txt) is a concise message prepared for the teammate; it has not been sent. The [three-minute demo](PITCH.md) distinguishes current synthetic rehearsal from a verified model demonstration. B's implementation is published in `codex/frontend` (initial implementation commit `9f3716c`; use the branch's latest revision). A remains the final integrator.
+
+## Verified against A's source
+
+At backend revision `1d10013fbfcff57bd8782077543d5aa4816fab4f`, A's 20 tests passed locally. Three browser scenarios also passed against A's unchanged production API, persistence, pipeline, decoder, preview and export with generated video and A's scripted test model. They cover positive/negative/failure, auth scopes, media playback, review persistence, immutable jury results, ZIP download and intentional synthetic-case deletion. Setup, scope and limitations: [BACKEND_INTEGRATION.md](BACKEND_INTEGRATION.md). This is not a live GPU/model qualification.
+
+After merging, update the A-owned root README from the initial planning status to the actual implementation and qualified release status. The Windows connected build exists; full offline inference still requires A's bundle and a measured disconnected run.
 
 ## First real integration
 

@@ -46,6 +46,7 @@ The persistent banner identifies synthetic fixtures. No inference runs; upload i
 | `pnpm test:e2e` | Synthetic browser scenarios using installed Microsoft Edge |
 | `pnpm test:production` | Build and verify no production demo, no external assets, strict CSP and rejection of synthetic server results |
 | `pnpm test:desktop` | Electron launcher/connected smoke and synthetic local-process lifecycle; does not test inference |
+| `pnpm test:integration` | A's unchanged FastAPI/store/media/export + production UI, with a scripted synthetic model; requires the setup below |
 | `pnpm dev:desktop` | Build web, start Electron mode selector |
 | `pnpm build:desktop:connected` | Windows folder without inference resources |
 | `pnpm build:desktop` | Windows folder including A's backend bundle; refuses missing bundle |
@@ -77,7 +78,7 @@ Current verified connected output: `apps/desktop/dist/connected/win-unpacked/Cas
 
 ## Scope and limitations
 
-Tests with mock HTTP prove client behavior, not real backend integration or AI accuracy. The frozen shared fixtures are unchanged; development demo copies have Russian and English presentation labels and original geometric frames. Actual display text is rendered as text, without interpreting HTML. Rule sources in an event always use that case's immutable snapshot.
+Tests with mock HTTP prove client behavior. The separate [backend integration run](BACKEND_INTEGRATION.md) exercises A's actual API, storage, media and export with a scripted model and generated video. Neither verifies Qwen accuracy or the deployed GPU service. The frozen shared fixtures are unchanged; development demo copies have Russian and English presentation labels and original geometric frames. Actual display text is rendered as text, without interpreting HTML. Rule sources in an event always use that case's immutable snapshot.
 
 The browser authenticates the list endpoint at connection. In-memory credentials require re-entry after refresh. Hash routes retain only an opaque job ID, never a key. The server's persisted case list restores access to ongoing work.
 
@@ -87,7 +88,8 @@ See `requests-for-a.md` for real integration dependencies and `QA.md` for execut
 
 - [Three-minute demonstration](PITCH.md): Russian narration, exact actions and timings, honest current demo, substitutions after real integration, rehearsal plan and fallback.
 - [Integration checklist](INTEGRATION_CHECKLIST.md): inputs needed from A, connection setup, 18 real-service acceptance checks, ownership, API matrix and result template. All real integration checks remain unverified.
-- [Message prepared for A](HANDOFF_TO_A.txt): copyable handoff text; not sent automatically. The current frontend implementation remains local until a separate Git publication step.
+- [Backend integration evidence and setup](BACKEND_INTEGRATION.md): reproducible synthetic checks against A's source, dependency boundaries and remaining release gates.
+- [Message prepared for A](HANDOFF_TO_A.txt): copyable handoff text; not sent automatically. Frontend is published in `codex/frontend`; A owns the final merge into `main`.
 
 ## Implementation references
 

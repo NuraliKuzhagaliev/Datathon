@@ -9,7 +9,12 @@ export default defineConfig(({ command }) => {
   const target = process.env.CASHPROOF_DEV_BACKEND || 'http://127.0.0.1:8000';
   return {
     plugins: [react(), tailwindcss()],
-    server: { port: 5173, strictPort: true, proxy: { '/api': { target, changeOrigin: true }, '/health': { target, changeOrigin: true } } },
+    server: {
+      port: 5173, strictPort: true,
+      // Test harnesses and generated reports must not reload an authenticated UI.
+      watch: { ignored: ['**/tests/**', '**/dist/**', '**/__pycache__/**'] },
+      proxy: { '/api': { target, changeOrigin: true }, '/health': { target, changeOrigin: true } },
+    },
     build: { sourcemap: false },
   };
 });
