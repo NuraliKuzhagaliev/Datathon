@@ -1,10 +1,24 @@
 # Codex B → Codex A: integration requests
 
+## Final B handoff — 18 October 2026
+
+Owner authorizes B to merge PR #4 into `codex/integration` and update the static site. Final implementation, commands, scope and remaining gates: [HANDOFF_TO_A.txt](HANDOFF_TO_A.txt). B has recorded 83 distinct engineering checks; no claim of real-model acceptance.
+
+Remaining actions for A:
+
+1. Restore a running GPU API and give a freshly verified HTTPS route: B currently gets site 200, public health 502 and prepared tunnel health 502. Publishing that unavailable target cannot restore service.
+2. After the route works, complete independent-network operator/jury flows. Keys stay in direct human UI entry. Original footage/content stays out of cloud tooling.
+3. Rebuild the full Windows package from merged PR #4 with the checked backend bundle; run a new analysis on RTX 4060 with the host actually disconnected, then verify local media/review/export and shutdown.
+4. Arrange local human acceptance for a genuine positive and multi-event result, timestamps, applicability and saved review. Useful recognition remains unqualified (stable development recall 0/15); do not substitute synthetic UI checks.
+5. Rehearse the updated five-minute [pitch](PITCH.md) and record outstanding I01–I18 individually.
+
+The older request history below is retained for traceability; current requirements and build paths are in the final handoff.
+
 **Актуализация общего аудита 17 октября 2026.** Исторические утверждения ниже относятся к состоянию B до интеграции. Полный backend-комплект и реальные прогоны на A уже существуют. Текущая доступность API, качество модели и открытые проверки описаны в [общем акте](../integration/PROJECT_STATUS.md); они не подтверждаются ранними синтетическими тестами.
 
 Frontend implementation consumes contract 1.0.0 without changing shared files. This is a request log, not evidence that the backend has been integrated.
 
-The concrete joint procedure is now in [INTEGRATION_CHECKLIST.md](INTEGRATION_CHECKLIST.md), with 18 acceptance checks and a result template. [HANDOFF_TO_A.txt](HANDOFF_TO_A.txt) is a concise message prepared for the teammate; it has not been sent. The [three-minute demo](PITCH.md) distinguishes current synthetic rehearsal from a verified model demonstration. B's implementation is published in `codex/frontend` (initial implementation commit `9f3716c`; use the branch's latest revision). A remains the final integrator.
+The concrete joint procedure is now in [INTEGRATION_CHECKLIST.md](INTEGRATION_CHECKLIST.md), with 18 acceptance checks and a result template. [HANDOFF_TO_A.txt](HANDOFF_TO_A.txt) is a concise message prepared for the teammate; it has not been sent. The [five-minute demo](PITCH.md) distinguishes current synthetic rehearsal from a verified model demonstration. B's implementation is published in `codex/frontend` (initial implementation commit `9f3716c`; use the branch's latest revision). A remains the final integrator.
 
 ## Verified against A's source
 

@@ -1,5 +1,34 @@
 # Frontend verification record
 
+## Final B release delta — 18 October 2026
+
+Found and fixed an actual readiness defect: `useRequest` retains its last data on a polling error, so the header and System previously could remain green during an outage. Both now require an error-free, completed health response. The new browser test drives ready → HTTP 502 → ready and passed (1/1, 4.9 s). TypeScript and both production browser checks were rerun successfully after this change (2/2, 5.8 s).
+
+Combined with the qualified checks below, this is **83 distinct checks** (38 unit + 10 desktop security/resources + 26 browser + 2 production + 3 API integration + 4 Electron). This count represents recorded successful runs, not a claim that every suite was rerun after the small health change. The earlier complete browser run and focused regressions are distinguished below.
+
+Release outputs: `apps/web/dist` and `apps/desktop/dist/connected-final/win-unpacked`. Both built successfully; the final packaged EXE launch passed again (1/1, 2.3 s, an existing scenario rather than another distinct test). Local archives, SHA-256 inventory and deployment receipt belong in ignored `releases/frontend`; do not commit binaries, keys or private cases. The web archive excludes QA reports. The Windows package is connected-only and unsigned; the full offline rebuild and disconnected run require A's prepared RTX 4060 host.
+
+Anonymous external probes from B's network: site `/` HTTP 200; `/health/ready` HTTP 502; prepared replacement tunnel health HTTP 502. The owner has authorized merging PR #4 and updating the static site. A successful static publication does not prove API recovery, real model quality or offline operation.
+
+## Frontend polish qualification — 18 October 2026
+
+Base: current integration `ea69728532a07d7bf9da85ee321f542c389c63b5`, incorporated into `codex/frontend-polish`. Checks use generated video/geometric fixtures only; no supplied footage, real case content, credentials or model output was sent to an agent. User reports the service works; this update does not independently requalify the public deployment, recognition accuracy or disconnected GPU inference.
+
+| Check | Executed result |
+| --- | --- |
+| `pnpm check:ui` | Types/22 generated validators, 38 unit tests and 10 desktop security/resource-integrity tests passed on the merged source. |
+| `pnpm test:e2e` | All 24 scenarios passed after integration. A subsequent visual correction to keep Save inside the panel passed 7 targeted checks, including one new scenario: **25 distinct browser scenarios** passed overall. |
+| `pnpm test:production` | 2 passed after integration: local resources/CSP, no development demo, synthetic response rejection. Final visual CSS was rebuilt afterward. |
+| `CASHPROOF_BACKEND_ROOT=<repository>; pnpm test:integration` | 3 passed against the current FastAPI implementation and scripted synthetic model (48.1 s). Actual transport, storage, media, review and export are exercised; no GPU model qualification. |
+| `pnpm test:desktop` | 4 passed (11.5 s), including the real Electron unload/quit lifecycle with a test-stubbed native choice. Cancelling quit and mode change retains the window and synthetic backend; accepting quit stops it. |
+| Web/Windows artifacts | `pnpm build:web` passed; `node apps/desktop/scripts/package.mjs --connected --output-name connected-polish` produced an unsigned connected folder with the final native close handling. |
+
+These are **82 distinct checks** across unit, security, browser, production, integration and Electron suites; repeated regressions are not counted twice. The first new draft scenario used an incorrect English expectation (“Needs further review” instead of the existing “Further review needed”); correcting the test resolved it. The full merged browser run subsequently passed.
+
+Viewed synthetic desktop/mobile screenshots of case filters, local video selection, review state and the save toolbar. Responsive checks cover 1440/1366/1024/390 px. New behavior checks prove draft survival across navigation, no case text in localStorage, rejected wrong-event acknowledgements, no stale poll rollback, no upload before confirmation, and Blob URL cleanup. Browser metadata is only a local preview, never the authoritative decoded timeline.
+
+The build retains the existing non-fatal warning about a JavaScript chunk above 500 kB. Source changes are limited to B-owned files relative to the integration base. Older local readiness notes were preserved under ignored `.tools/frontend-polish/prior-readiness-notes` before adopting A's newer common documentation; untracked handoff text files were left intact.
+
 Common audit additions: 20 dev browser tests (including bundled notices with blocked network), 38 web unit tests, 5 original desktop security tests plus 4 resource-integrity tests, 3 production-API scenarios, 2 production-browser checks, 4 Electron scenarios and a separate smoke of the new Connected EXE passed. The corrected full package independently passed all 20,529 backend file hashes. These results cover engineering behavior with synthetic inputs; the new real-runtime and disconnected gates remain separate. The earlier full EXE did run real inference, but its nested backend omitted a manifest-listed `.gitkeep`; do not treat that package as hash-complete.
 
 **Актуализация общего аудита 17 октября 2026.** Исторические утверждения ниже относятся к состоянию B до интеграции. Полный backend-комплект и реальные прогоны на A уже существуют. Текущая доступность API, качество модели и открытые проверки описаны в [общем акте](../integration/PROJECT_STATUS.md); они не подтверждаются ранними синтетическими тестами.
