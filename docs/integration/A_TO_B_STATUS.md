@@ -1,5 +1,7 @@
 # A to B: integration handoff, 17 October 2026
 
+**Maintenance snapshot, 17 October 2026:** local API paused with user approval for GPU evaluation. The old Cloudflare upstream below no longer resolves. Replacement `range-journalism-louisiana-gym.trycloudflare.com` is prepared in Vercel Draft, not published. Do not use historical successful receipts as current readiness. [Common audit](PROJECT_STATUS.md).
+
 Backend 0.3.1 and frontend e03e5a9 are integrated on unchanged contract 1.0.0. Use the latest codex/integration (draft PR #3). The packaged runtime source is 4a69e19d99b1fbf0e35b6991b0a68a88bd5f0d8d; subsequent commits add verification tools and receipts. Main remains unchanged pending explicit approval after automatic review rejected the main push. This is an engineering integration candidate; detection quality is inadequate for submission.
 
 | Requested item | Actual state |

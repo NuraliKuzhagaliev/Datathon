@@ -1,15 +1,25 @@
 // New real local analysis in the packaged EXE. Private contents stay on disk.
 const fs = require('node:fs');
 const path = require('node:path');
+const { parseArgs } = require('node:util');
+const { randomUUID } = require('node:crypto');
 const { _electron: electron, expect } = require('@playwright/test');
 const root = path.resolve(__dirname, '..');
-const output = path.join(root, 'private-data/Проверка настоящего Windows');
-fs.mkdirSync(output, {recursive:true});
+const { values } = parseArgs({ options: { executable: { type: 'string' }, output: { type: 'string' } } });
+const executable = path.resolve(values.executable || path.join(root,'apps/desktop/dist/offline/win-unpacked/CashProof.exe'));
+const packagedVersion = fs.readFileSync(path.join(path.dirname(executable), 'resources/backend/app/cashproof/__init__.py'), 'utf8').match(/^__version__ = "([0-9.]+)"$/m)?.[1];
+if (!packagedVersion) throw new Error('Cannot determine packaged backend version.');
+const privateRoot = path.join(root, 'private-data');
+const output = path.resolve(values.output || path.join(privateRoot, 'packaged-verification', randomUUID()));
+const relativeOutput = path.relative(privateRoot, output);
+if (!relativeOutput || relativeOutput.startsWith('..') || path.isAbsolute(relativeOutput)) throw new Error('Verification output must be a new private-data subdirectory.');
+fs.mkdirSync(path.dirname(output), {recursive:true});
+fs.mkdirSync(output); // Preserve every earlier receipt and case on repeat runs.
 
 (async () => {
   const {video} = JSON.parse(fs.readFileSync(path.join(root,'private-data/live-browser-integration/input.json'),'utf8'));
   const started = Date.now();
-  const app = await electron.launch({executablePath:path.join(root,'apps/desktop/dist/offline/win-unpacked/CashProof.exe'),args:[],timeout:60000});
+  const app = await electron.launch({executablePath:executable,args:[],timeout:60000});
   let origin, summary;
   let external = 0, errors = 0;
   const externalOrigins = new Set();
@@ -48,7 +58,7 @@ fs.mkdirSync(output, {recursive:true});
       const detail=await (await fetch('/api/ui/cases/'+id,{headers:{'X-API-Key':config.apiKey}})).json();
       return {status:detail.status,is_synthetic:detail.is_synthetic,event_count:detail.events.length,backend_version:detail.model_version.split(';backend=')[1]};
     });
-    if (state.status!=='done' || state.is_synthetic!==false || state.backend_version!=='0.3.1') throw new Error('Unexpected real runtime result');
+    if (state.status!=='done' || state.is_synthetic!==false || state.backend_version!==packagedVersion) throw new Error('Unexpected real runtime result');
     summary={packaged:true,new_real_analysis_completed:true,backend_version:state.backend_version,health,startup_sec:startupSec,analysis_sec:analysisSec,input_bytes:fs.statSync(video).size,review_real_events_verified:false,host_network_disconnected:false,os_offline_qualified:false};
     fs.writeFileSync(path.join(output,'technical-checkpoint.json'),JSON.stringify(summary,null,2));
     await app.evaluate(({session}, destination)=>{

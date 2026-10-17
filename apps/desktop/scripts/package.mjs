@@ -11,7 +11,9 @@ const connected = process.argv.includes('--connected');
 const outputFlag = process.argv.indexOf('--output-name');
 const outputName = outputFlag < 0 ? (connected ? 'connected' : 'offline') : process.argv[outputFlag + 1];
 if (!outputName || !/^[a-z0-9][a-z0-9-]{0,48}$/.test(outputName)) throw new Error('--output-name must be a simple folder name.');
-const backend = path.join(root, 'releases/backend');
+const backendFlag = process.argv.indexOf('--backend-dir');
+if (backendFlag >= 0 && (!process.argv[backendFlag + 1] || process.argv[backendFlag + 1].startsWith('--'))) throw new Error('--backend-dir requires a bundle directory.');
+const backend = backendFlag < 0 ? path.join(root, 'releases/backend') : path.resolve(root, process.argv[backendFlag + 1]);
 if (!connected && !fs.existsSync(path.join(backend, 'launch.json'))) throw new Error('Offline release requires Codex A’s releases/backend/launch.json. Use build:desktop:connected only for an explicitly connected-only build.');
 if (!fs.existsSync(path.join(root, 'apps/web/dist/index.html'))) throw new Error('Run build:web first.');
 await build({ targets: Platform.WINDOWS.createTarget('dir'), config: {
