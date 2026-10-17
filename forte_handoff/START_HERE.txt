@@ -1,0 +1,31 @@
+FORTEBANK DATATHON HANDOFF
+
+1. Open 01_RESEARCH_AND_PLAN.html in a browser. It contains the researched strategy, requirement matrix, data findings, visual direction, useful innovations, 23-hour schedule and submission gates.
+
+2. Put the complete forte_handoff folder into one project repository. The initial baseline owner copies forte_handoff/contracts to packages/contracts once. Commit that baseline before the two developers branch. This avoids two competing contract files.
+
+3. Person A opens a coding chat on the RTX 4060 8 GB computer and pastes CODEX_A_MASTER_PROMPT.txt. Person B opens a coding chat on the other computer and pastes CODEX_B_MASTER_PROMPT.txt. Both chats must have the handoff and shared baseline available. They can use separate clones/branches of the same repository.
+
+4. Both read SHARED_CONTRACT.md. A owns Python/inference/rules/API/deployment. B owns web/desktop/JavaScript. A integrates the releases. Merge working slices at hours 2, 5, 9, 14 and 18. Contract/lockfile ownership is explicit.
+
+5. Keep private videos local. Never paste frames, video-derived captions/descriptions or screenshots of real cases into either cloud coding chat. Use the supplied synthetic fixtures for agent-visible UI work. Local models and the humans inspect actual footage privately.
+
+6. Copy the actual dataset to a durable local private-data directory on the inference machine before Temp files disappear. Preserve original filenames and hashes. Do not upload it to a shared public repository. The handoff archive intentionally contains no footage or extracted evidence images.
+
+7. Start model downloads and resolve public HTTPS routing immediately. Use the 23-hour schedule relative to your real deadline; confirm the organizer's date and timezone for 12:00. The research does not guarantee a win, model accuracy or a correct merge. The acceptance gates tell both builders what must actually be demonstrated.
+
+CONTENTS
+
+01_RESEARCH_AND_PLAN.html      Research report and execution plan
+CODEX_A_MASTER_PROMPT.txt       Complete backend/local-AI prompt
+CODEX_B_MASTER_PROMPT.txt       Complete web/desktop prompt
+SHARED_CONTRACT.md              Architecture, ownership and integration behavior
+contracts/openapi.json          Frozen HTTP contract 1.0.0
+contracts/fixtures/             Nine synthetic integration fixtures
+audit/dataset_manifest.csv      Metadata and label audit for every supplied video
+audit/dataset_manifest.json     Same audit with track metadata
+audit/dataset_summary.json      Aggregate audit findings
+audit/decode_results.json       Full local decode results for all 42 videos
+audit/validation_report.json    Handoff validation performed in this research
+
+The .py files support reproducibility; they are not the CashProof application. The product itself is to be implemented by the two Codex workstreams.

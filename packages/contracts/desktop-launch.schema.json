@@ -1,0 +1,38 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "const": "1.0.0",
+      "type": "string"
+    },
+    "executable": {
+      "type": "string",
+      "minLength": 1
+    },
+    "args_prefix": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cwd": {
+      "type": "string",
+      "minLength": 1
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "contract_version",
+    "executable",
+    "args_prefix",
+    "cwd",
+    "env"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

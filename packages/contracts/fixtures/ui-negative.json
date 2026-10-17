@@ -1,0 +1,27 @@
+{
+  "job_id": "synthetic-negative",
+  "filename": "synthetic-fixture.mov",
+  "created_at": "2026-10-17T06:00:00Z",
+  "status": "done",
+  "stage": "complete",
+  "progress_percent": 100,
+  "elapsed_sec": 18,
+  "duration_sec": 30,
+  "model_result": {
+    "job_id": "synthetic-negative",
+    "status": "done",
+    "verdict": "no_violation",
+    "violations": []
+  },
+  "error": null,
+  "events": [],
+  "coverage": [],
+  "media_ready": false,
+  "time_map": [],
+  "rule_registry_version": "synthetic-1",
+  "model_version": "synthetic-fixture-no-model",
+  "input_sha256": null,
+  "is_synthetic": true,
+  "rules": [],
+  "review_cues": []
+}

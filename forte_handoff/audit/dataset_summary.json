@@ -1,0 +1,29 @@
+{
+  "files_supplied": 42,
+  "files_present": 42,
+  "label_rows": 42,
+  "labels": {
+    "нарушение": 22,
+    "без нарушения": 20
+  },
+  "total_duration_sec": 1444.1666666666667,
+  "min_duration_sec": 11.633333333333333,
+  "max_duration_sec": 142.53333333333333,
+  "median_duration_sec": 22.666666666666668,
+  "total_bytes": 292870994,
+  "min_bytes": 2426840,
+  "max_bytes": 28718927,
+  "codec_counts": {
+    "avc1": 42
+  },
+  "resolution_counts": {
+    "464.0x848.0": 42
+  },
+  "fps_min": 29.75806451612903,
+  "fps_max": 30.0,
+  "variable_sample_delta_files": 37,
+  "files_with_audio_tracks": 0,
+  "invalid_label_time_files": [],
+  "duplicate_hash_groups": 2,
+  "semantic_video_review": "Not performed by cloud AI; no frames or descriptions exported"
+}

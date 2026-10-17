@@ -1,0 +1,20 @@
+{
+  "version": "synthetic-1",
+  "rules": [
+    {
+      "rule_id": "SYNTHETIC_ONLY",
+      "display_name": "Synthetic fixture rule",
+      "document_title": "Integration fixture only",
+      "source_url": "https://example.invalid/synthetic",
+      "clause": "Not applicable",
+      "revision": "synthetic",
+      "effective_date": null,
+      "applicability": "UI development only",
+      "exclusions": [
+        "Never use in production inference"
+      ],
+      "enabled": false,
+      "source_sha256": null
+    }
+  ]
+}
