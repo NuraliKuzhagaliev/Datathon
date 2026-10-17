@@ -24,8 +24,15 @@ def native_inputs(processor, frames, images, text, torch, max_pixels):
     pts = [float(f["timestamp_sec"]) for f in frames]
     if any(b < a for a, b in zip(pts, pts[1:])):
         raise ValueError("Video frames must be in PTS order")
+    # Qwen's video longest_edge is a TOTAL pixel budget, unlike the image
+    # processor's per-image max_pixels. Explicit temporal padding keeps the
+    # per-frame spatial budget unchanged for odd-length inputs too.
+    temporal_factor = int(processor.video_processor.temporal_patch_size)
+    pad = (-len(images)) % temporal_factor
+    padded_images = images + [images[-1]] * pad
+    pts = pts + [pts[-1]] * pad
     tensor = torch.stack(
-        [torch.from_numpy(np.array(image)).permute(2, 0, 1) for image in images]
+        [torch.from_numpy(np.array(image)).permute(2, 0, 1) for image in padded_images]
     )
     fps = (
         (len(pts) - 1) / (pts[-1] - pts[0])
@@ -54,7 +61,10 @@ def native_inputs(processor, frames, images, text, torch, max_pixels):
                         "frames_indices": list(range(len(pts))),
                     }
                 ],
-                "size": {"shortest_edge": 1024, "longest_edge": max_pixels},
+                "size": {
+                    "shortest_edge": 1024 * len(pts),
+                    "longest_edge": max_pixels * len(pts),
+                },
             },
         )
     finally:

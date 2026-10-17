@@ -153,6 +153,22 @@ def test_native_video_uses_actual_vfr_pts_and_restores_processor():
         assert batch["video_grid_thw"][0, 0].item() == 2
         assert processor._calculate_timestamps == original
         assert batch["pixel_values_videos"].device.type == "cpu"
+        longer_frames = [{"id": f"f{i}", "timestamp_sec": i * 0.23} for i in range(14)]
+        longer_images = [images[0]] * 14
+        longer = native_inputs(
+            processor, longer_frames, longer_images, text, torch, 65536
+        )
+        assert (
+            longer["video_grid_thw"][0, 1:].tolist()
+            == batch["video_grid_thw"][0, 1:].tolist()
+        )
+        spatial_pixels = (
+            int(longer["video_grid_thw"][0, 1:].prod())
+            * processor.video_processor.patch_size**2
+        )
+        assert (
+            spatial_pixels == 320 * 160
+        )  # All source detail fits the per-frame budget.
     finally:
         for image in images:
             image.close()
