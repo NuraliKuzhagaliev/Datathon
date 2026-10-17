@@ -7,7 +7,7 @@ const { _electron: electron, expect } = require('@playwright/test');
 const root = path.resolve(__dirname, '..');
 const { values } = parseArgs({ options: { executable: { type: 'string' }, output: { type: 'string' } } });
 const executable = path.resolve(values.executable || path.join(root,'apps/desktop/dist/offline/win-unpacked/CashProof.exe'));
-const packagedVersion = fs.readFileSync(path.join(path.dirname(executable), 'resources/backend/app/cashproof/__init__.py'), 'utf8').match(/^__version__ = "([0-9.]+)"$/m)?.[1];
+const packagedVersion = fs.readFileSync(path.join(path.dirname(executable), 'resources/backend/app/cashproof/__init__.py'), 'utf8').match(/^__version__\s*=\s*"([0-9.]+)"/m)?.[1];
 if (!packagedVersion) throw new Error('Cannot determine packaged backend version.');
 const privateRoot = path.join(root, 'private-data');
 const output = path.resolve(values.output || path.join(privateRoot, 'packaged-verification', randomUUID()));

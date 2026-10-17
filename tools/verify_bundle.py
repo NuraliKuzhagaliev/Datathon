@@ -59,7 +59,7 @@ def main():
             for block in iter(lambda: source.read(8 * 1024 * 1024), b""):
                 digest.update(block)
         archive.with_suffix(".zip.sha256").write_text(
-            digest.hexdigest() + "  " + archive.name + "\n", encoding="ascii"
+            digest.hexdigest() + "  " + archive.name + "\n", encoding="utf-8"
         )
         result.update(
             archive=str(archive),

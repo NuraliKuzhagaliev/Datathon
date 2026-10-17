@@ -37,12 +37,20 @@ test('packaged inventory rejects corrupt bytes instead of rewriting trusted hash
   await assert.rejects(f.verify(), /checksum mismatch/);
 });
 test('packaged inventory refuses traversal before writing outside the bundle', async t => {
-  const f = await fixture(t, '../escape.txt');
-  await assert.rejects(f.verify(), /Unsafe manifest resource path/);
+  for (const name of ['../escape.txt', 'NUL', 'nested/COM1.txt']) {
+    const f = await fixture(t, name);
+    await assert.rejects(f.verify(), /Unsafe manifest resource path/);
+  }
 });
 test('packaged inventory refuses a symlink into another directory', async t => {
   const f = await fixture(t, 'linked/model.bin', 'correct');
   await fs.mkdir(path.join(f.source, 'real'));
   await fs.symlink(path.join(f.source, 'real'), path.join(f.destination, 'linked'), 'junction');
   await assert.rejects(f.verify(), /symlink/);
+});
+test('packaged inventory rejects unlisted artifacts instead of silently shipping them', async t => {
+  const f = await fixture(t, 'model.bin', 'correct');
+  await fs.writeFile(path.join(f.destination, 'model.bin'), 'correct');
+  await fs.writeFile(path.join(f.destination, 'unexpected-test-file.txt'), 'synthetic disposable content');
+  await assert.rejects(f.verify(), /Unlisted packaged backend file/);
 });
