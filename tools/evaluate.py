@@ -142,7 +142,7 @@ def main():
             raise RuntimeError(
                 "Synthetic visual grounding failed before private evaluation"
             )
-        if a.native_video:
+        if a.native_video or a.experimental_fact_screen:
             from temporal_grounding import verify as verify_temporal
 
             if not verify_temporal(model, a.output / "synthetic-temporal-grounding")[

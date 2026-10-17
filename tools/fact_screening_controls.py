@@ -44,13 +44,19 @@ def verify(model, directory):
         valid = all(
             e.event_frame_id in {f["id"] for f in sequence} for e in result.events
         )
+        instant_correct = (
+            [e.event_frame_id for e in result.events] == ["f2"]
+            if expected
+            else not result.events
+        )
         rows.append(
             {
                 "direction": order,
                 "expected_event": expected,
                 "returned_events": len(result.events),
                 "source_indices_valid": valid,
-                "passed": bool(result.events) == expected and valid,
+                "first_supportable_instant_correct": instant_correct,
+                "passed": bool(result.events) == expected and valid and instant_correct,
             }
         )
     value = {

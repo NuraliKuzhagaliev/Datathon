@@ -23,13 +23,10 @@ class FactModel:
                     "visibility_limited": False,
                 }
             )
-        keys = output_schema["properties"]["facts"]["required"]
         return json.dumps(
             {
-                "sequence": "Generated movement only",
-                "facts": {
-                    k: {"state": self.state, "indices": self.indices} for k in keys
-                },
+                "observed": self.state == "observed",
+                "indices": self.indices,
                 "visibility_limited": self.state == "unclear",
                 "overflow": self.overflow,
             }
@@ -51,7 +48,7 @@ def test_fact_screen_has_explicit_negatives_and_exact_source_index(
     assert all(
         e.event_frame_id == "f2" and e.frame_ids == ["f2"] for e in result.events
     )
-    assert model.calls == 2
+    assert model.calls == 3
 
 
 @pytest.mark.parametrize(
