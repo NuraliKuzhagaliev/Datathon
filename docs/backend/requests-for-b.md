@@ -13,4 +13,6 @@ Use shared baseline `322afabd1daebc15d25846ac5fd4f62cd1c8c3d0` and unchanged con
 - Rules currently enable only §22 as an experimental detector. Other researched candidates are explicitly disabled pending local validation. Display the case's rule snapshots and coverage reasons.
 - Render any API text as text. Fetch preview as an authenticated Blob, revoke its URL, and never put keys in URLs or persistent browser storage.
 
-Portable release, actual model throughput and real upload-to-result integration remain release gates until recorded in `docs/integration/verification.md`. Do not label a source checkout as an offline release.
+Current live URL and private key-entry procedure: [connected Vercel handoff](../integration/VERCEL_WEB_HANDOFF.md). A real 28.7 MB upload passed through the public origin in 60.625 s; independent second-PC verification remains open. The private bundle/archive and actual Windows runtime evidence are recorded in `docs/integration/A_TO_B_STATUS.md`; full disconnected qualification and useful recognition remain open.
+
+Before public desktop distribution, prepare B's Electron/JavaScript notice inventory and a user-accessible third-party notices view or documentation. A's [release license inventory](release-licensing.md) identifies two supplemental license texts and remaining FFmpeg/native-library source obligations. The current binary candidate remains private and unapproved for public redistribution; do not mark the whole package reviewed from the new notice supplement.

@@ -1,0 +1,22 @@
+{
+  "tokenizers_source_commit": "f383101a26663708484cac0727792aad74f78234",
+  "files": [
+    {
+      "path": "Apache-2.0.txt",
+      "source_url": "https://www.apache.org/licenses/LICENSE-2.0.txt",
+      "component": "Qwen/Qwen3-VL-2B-Instruct",
+      "version": "89644892e4d85e24eaac8bacfd4f463576704203",
+      "size": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "tokenizers-0.22.2-LICENSE.txt",
+      "source_url": "https://raw.githubusercontent.com/huggingface/tokenizers/f383101a26663708484cac0727792aad74f78234/LICENSE",
+      "component": "tokenizers",
+      "version": "0.22.2",
+      "size": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    }
+  ],
+  "public_redistribution_reviewed": false
+}

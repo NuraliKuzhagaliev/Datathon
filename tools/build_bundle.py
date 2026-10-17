@@ -38,6 +38,46 @@ def copytree(source, destination, ignore=None):
     shutil.copytree(source, destination, copy_function=link_or_copy, ignore=ignore)
 
 
+def copy_license_supplements(source_root, notices, model, inventory):
+    provenance = source_root / "provenance.json"
+    if not provenance.is_file():
+        return 0
+    supplement = json.loads(provenance.read_text(encoding="utf-8"))
+    versions = {item["name"].lower(): item["version"] for item in inventory}
+    selected = []
+    destination = notices / "supplemental"
+    for item in supplement["files"]:
+        if item["component"] == model["repo_id"]:
+            applicable = item["version"] == model["revision"]
+        else:
+            applicable = versions.get(item["component"].lower()) == item["version"]
+        if not applicable:
+            continue
+        relative = Path(item["path"])
+        source = (source_root / relative).resolve()
+        if (
+            relative.is_absolute()
+            or ".." in relative.parts
+            or not source.is_relative_to(source_root.resolve())
+            or digest_file(source) != item["sha256"]
+            or source.stat().st_size != item["size"]
+        ):
+            raise ValueError("Unsafe or changed supplemental notice")
+        destination.mkdir(exist_ok=True)
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        link_or_copy(source, target)
+        selected.append(item)
+    if selected:
+        (destination / "provenance.json").write_text(
+            json.dumps(
+                {"files": selected, "public_redistribution_reviewed": False}, indent=2
+            ),
+            encoding="utf-8",
+        )
+    return len(selected)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--python-base", type=Path, required=True)
@@ -171,12 +211,17 @@ def main():
     (notices / "python-packages.json").write_text(
         json.dumps(inventory, indent=2), encoding="utf-8"
     )
+    # Supplemental upstream texts are distinct from the original wheel/model
+    # files. They do not change those pinned inventories or grant release approval.
+    copy_license_supplements(ROOT / "assets/licenses", notices, manifest, inventory)
     (notices / "README.txt").write_text(
         "Internal team release candidate. Python's license is python/LICENSE.txt; "
         "third-party package notices remain in python/Lib/site-packages. "
         f"The Qwen model card is models/{model_name}/README.md (Apache-2.0). "
         "FFmpeg license, build details and source revision are included here. "
         "A source revision link alone is not a complete corresponding-source distribution. "
+        "Additional pinned license texts, when applicable, are in supplemental/; "
+        "these do not complete the corresponding-source/native-library review. "
         "Review FFmpeg and bundled third-party redistribution obligations before public redistribution.\n",
         encoding="utf-8",
     )

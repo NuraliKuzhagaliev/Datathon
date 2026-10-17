@@ -4,13 +4,14 @@ Backend 0.3.1 and frontend e03e5a9 are integrated on unchanged contract 1.0.0. U
 
 | Requested item | Actual state |
 | --- | --- |
-| UI/API | http://127.0.0.1:8000 on A's workstation only |
-| Public HTTPS / separate-PC access | Not provisioned or verified; team host/inbound route unavailable |
-| Health | ready=true, mode=server, contract_version=1.0.0; current startup 25.312 s |
+| UI/API | https://cashproof-web.vercel.app; Vercel → authorized temporary Cloudflare route → real local GPU |
+| Public web frontend | Static B build, anonymous HTTPS and all nine asset hashes verified; API/health rewrites published |
+| Public HTTPS API / separate-PC analysis | Public-origin POST/poll passes; independent second-PC/network check remains open |
+| Health | ready=true, mode=server, contract_version=1.0.0; current startup 24.796 s |
 | Credentials | Distinct persistent operator/jury keys saved locally in ignored runtime-data/team-server/credentials.json; never published |
 | Model | Qwen/Qwen3-VL-2B-Instruct, revision 89644892e4d85e24eaac8bacfd4f463576704203, BF16/SDPA, local files only |
 | Registry | 2026-10-17.3; paragraph 22 experimental, six other candidates disabled |
-| New real analysis | 28.7 MB development MOV, jury POST/poll, 1 accepted/1 done/0 failed, 22.050 s including upload |
+| New real analysis | Local 22.050 s; public Vercel route 60.625 s including 40.218 s transmission/admission, 28.7 MB development MOV, 1 accepted/1 done/0 failed |
 | Web checks | 43 UI/security tests, 3 synthetic API/browser scenarios, 2 production browser checks pass |
 | Backend checks | 23 tests pass, including owner-only crash cleanup of worker and descendant |
 | Positive / multi-event real cases | Not qualified; existing synthetic scenarios are engineering tests only |
@@ -19,11 +20,11 @@ Backend 0.3.1 and frontend e03e5a9 are integrated on unchanged contract 1.0.0. U
 | Admission | One active/pending job; saturation 429 + Retry-After; no five-long-video capacity claim |
 | Portable bundle | releases/backend: 0.3.1 candidate, 20,528 hashed files plus manifest, 12.29 GB; verified archive 7,323,874,414 bytes; prior 0.2/0.3 rc1 folders must not be shipped |
 | New fully disconnected RTX 4060 analysis | Not verified; Python socket guard is not OS/network disconnection |
-| Joint 45–60 minute session | Not scheduled; requires B-accessible HTTPS first |
+| Joint 45–60 minute session | HTTPS now available; B's independent client and joint review remain unverified |
 
 Actual startup from repository root uses ../../work/.venv/Scripts/python.exe tools/start_team_server.py --ffmpeg ../../work/ffmpeg-9.0.2/ffmpeg.exe. The launcher runs cashproof.bootstrap with host 127.0.0.1, port 8000, runtime-data/team-server/cases and apps/web/dist. It preserves the existing keys. Keep the computer and GPU available during an agreed integration window; do not run model experiments concurrently with the service.
 
-B can already build/check the common source and exercise synthetic integration. Separate-PC live integration remains blocked on a permitted HTTPS route. An external-network jury POST/poll, useful recognition quality, a qualified portable package, disconnected desktop run and real-event source/time review remain explicit gates. No frontend-only test satisfies these gates. Follow docs/frontend/INTEGRATION_CHECKLIST.md; do not mark I01–I18 globally PASS from these partial results.
+B can build/check the common source and use the public UI/API with the existing keys entered privately. The complete route, configuration and limits are in [Vercel handoff](VERCEL_WEB_HANDOFF.md). Public tests include a new synthetic analysis/export (5.937 s, CRC verified) and a real 28.7 MB upload/poll (60.625 s). An independent client/network, useful recognition quality, a qualified portable package, disconnected desktop run and real-event source/time review remain explicit gates. No frontend-only test satisfies these gates. Follow docs/frontend/INTEGRATION_CHECKLIST.md; do not mark I01–I18 globally PASS from these partial results.
 
 The real browser flow completed upload, model response, export and re-login with zero JavaScript errors. Its external-request guard blocked two requests to http://me.kis.v2.scr.kaspersky-labs.com; no zero-external-request browser pass is claimed. The installed security environment was not modified. The actual live GPU server was then killed by its owner PID only: two immediate child processes before, zero surviving children after two seconds. This is additional real-process cleanup evidence, not a disconnected desktop qualification.
 
@@ -41,4 +42,4 @@ Private backend archive: `releases/backend-0.3.1-rc1 проверка.zip`, 7,32
 SHA-256: `a95c465b8cf2eacd5818381431ec2b0d055e1c97728813160b916d7396cacc16`.
 The adjacent `.zip.sha256` file repeats this checksum. All 20,529 file/manifest records were verified before streaming the ZIP; it was reopened and 24 critical source/rule/launch/model-manifest entries rehashed from compressed contents. Public binary redistribution remains unreviewed, including FFmpeg corresponding-source obligations.
 
-The persistent local team server has been restored with its original keys. No model experiment is running alongside it. External HTTPS and the joint 45–60 minute separate-PC window still require a permitted route. Main publication remains blocked pending explicit approval; use draft PR #3 / codex/integration meanwhile.
+The persistent local team server and temporary tunnel are running with the original keys. No model experiment runs alongside them; the Qwen3.5 experiment was interrupted before private evaluation to preserve service. The human explicitly approved real-video transport through Cloudflare after disclosure; organizer approval is not recorded. Keep this computer connected and awake. A tunnel restart changes its upstream URL and requires both Vercel rules to be updated. No uptime guarantee is claimed. Main remains unchanged; use draft PR #3 / codex/integration meanwhile.
