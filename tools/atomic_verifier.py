@@ -13,7 +13,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
     def __init__(self, model, registry, max_candidates=8):
         super().__init__(model, registry, max_candidates)
         model.runtime_configuration.update(
-            experimental_verifier="occurrence-specific independent checks v8; grammar requires exclusion witnesses; local indices and dense onset refinement",
+            experimental_verifier="occurrence-specific independent checks v9; explicit matching-occurrence selection before onset; unchanged evidence gates",
             atomic_verifier_sha256=hashlib.sha256(
                 Path(__file__).read_bytes()
             ).hexdigest(),
@@ -113,6 +113,16 @@ class AtomicFactPipeline(TriggerFactPipeline):
             + json.dumps(legend, separators=(",", ":"))
             + "\nJSON="
             + json.dumps(schema, separators=(",", ":"))
+            + (
+                "\nFocus for THIS answer="
+                + json.dumps(focus, separators=(",", ":"))
+                + ". First select the occurrence matching this approximate source hint, then assess this statement for THAT occurrence and its required before/after context. "
+                "If several matching actions occur, select the occurrence nearest the hint, not the earliest action anywhere in the images. "
+                "A condition or exclusion belonging only to another occurrence cannot establish or exclude this one. "
+                "A precondition may use earlier context of the SAME sequence; do not combine unrelated occurrences."
+                if focus
+                else ""
+            )
         )
 
         def parse(value):
@@ -266,6 +276,12 @@ class AtomicFactPipeline(TriggerFactPipeline):
             )
             + "\nDescribe the visible change in one short sentence. Include the event index in evidence_indices. JSON="
             + json.dumps(schema, separators=(",", ":"))
+            + "\nSelect THIS occurrence="
+            + json.dumps(focus, separators=(",", ":"))
+            + ". There may be multiple separate occurrences of the same action. FIRST choose the matching occurrence nearest this approximate hint, THEN locate its first supportable source frame. "
+            "Do not return the globally earliest occurrence when the proposed occurrence is later. "
+            "Earlier condition witnesses may refer to a different occurrence; they do not force acceptance or its time. "
+            "If this particular occurrence is not jointly supported, return contradicted/unobservable with a null event index."
         )
 
         def parse(value):
