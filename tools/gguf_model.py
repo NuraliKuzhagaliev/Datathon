@@ -77,7 +77,13 @@ def image_content(frames, pixels, edge):
 
 class GGUFModel:
     def __init__(
-        self, model_dir, runtime_dir, receipt, private_dir, screen_pixels=131072
+        self,
+        model_dir,
+        runtime_dir,
+        receipt,
+        private_dir,
+        screen_pixels=131072,
+        cache_prompt=True,
     ):
         self.process = None
         self.client = None
@@ -121,7 +127,7 @@ class GGUFModel:
             "runtime_receipt_sha256": RECEIPT_SHA256,
             "adapter_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "image_max_tokens": 256,
-            "cache_prompt": True,
+            "cache_prompt": cache_prompt,
             "context_shift": False,
             "attention": "llama.cpp CUDA Flash Attention",
             "json_grammar": "llama.cpp b11715 JSON-schema grammar",
@@ -263,7 +269,7 @@ class GGUFModel:
                 "temperature": 0,
                 "seed": 0,
                 "stream": False,
-                "cache_prompt": True,
+                "cache_prompt": self.runtime_configuration["cache_prompt"],
                 "max_tokens": self.runtime_configuration[
                     "verification_max_new_tokens"
                     if verify

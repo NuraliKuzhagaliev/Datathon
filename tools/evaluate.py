@@ -34,6 +34,7 @@ def main():
     p.add_argument("--native-video", action="store_true")
     p.add_argument("--experimental-fact-screen", action="store_true")
     p.add_argument("--experimental-trigger-screen", action="store_true")
+    p.add_argument("--experimental-atomic-verifier", action="store_true")
     p.add_argument("--experimental-gguf-runtime", type=Path)
     p.add_argument("--gguf-provision-receipt", type=Path)
     p.add_argument("--experimental-precision", choices=["nf4", "bf16"], default="nf4")
@@ -69,6 +70,10 @@ def main():
     if a.experimental_trigger_screen and not a.experimental_fact_screen:
         raise ValueError(
             "Visual trigger proposals require explicit fact-screen experiment"
+        )
+    if a.experimental_atomic_verifier and not a.experimental_trigger_screen:
+        raise ValueError(
+            "Independent verifier requires the explicit trigger experiment"
         )
     if a.experimental_gguf_runtime and (
         not a.experimental_fact_screen or a.native_video or not a.gguf_provision_receipt
@@ -189,6 +194,10 @@ def main():
         pipeline_class = (
             TriggerFactPipeline if a.experimental_trigger_screen else FactPipeline
         )
+        if a.experimental_atomic_verifier:
+            from atomic_verifier import AtomicFactPipeline
+
+            pipeline_class = AtomicFactPipeline
         pipeline = pipeline_class(model, registry, a.max_candidates)
     elif a.experimental_compact:
         from compact_pipeline import CompactPipeline

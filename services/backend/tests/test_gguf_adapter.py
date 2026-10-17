@@ -36,6 +36,7 @@ def adapter(handler):
     model.process = type("OwnedProcess", (), {"poll": lambda self: None})()
     model.technical_calls = []
     model.runtime_configuration = {
+        "cache_prompt": True,
         "max_images_per_call": 16,
         "screening_max_pixels": 131072,
         "verification_max_pixels": 262144,
