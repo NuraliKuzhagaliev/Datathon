@@ -1,37 +1,32 @@
 # Vercel frontend handoff
 
-**Maintenance snapshot, 17 October 2026:** local API paused with user approval for GPU evaluation. The old Cloudflare upstream below no longer resolves. Replacement `range-journalism-louisiana-gym.trycloudflare.com` is prepared in Vercel Draft, not published. Do not use historical successful receipts as current readiness. [Common audit](PROJECT_STATUS.md).
+Updated 18 October 2026. The current state below supersedes historical successful 0.3.1 HTTPS measurements.
 
-Public production URL: https://cashproof-web.vercel.app . Dashboard: https://vercel.com/lord-b46e/cashproof-web . Account nuralikuzhagaliev, team Lord, Hobby.
+Production alias: https://cashproof-web.vercel.app . Existing project: cashproof-web, Lord Hobby (lord-b46e), account nuralikuzhagaliev. The published static build is the old e03e5a9 frontend. The local API is restored from checked portable backend 0.3.2, original credentials retained; it is not yet reconnected to the production alias.
 
-Published 17 October 2026 using Vercel Drop to Deploy: only the freshly built static frontend, nine public assets plus deployment configuration, 672,855 bytes total. Frontend source e03e5a96324fd36afd2b85872a5f7d3c2806971d, integrated at 0549cf420511402c6d8a01f292917828b339d3f1. The build used Node 24.19.0 / pnpm 11.25.0. No B-owned source was changed. Main remains 322afabd1daebc15d25846ac5fd4f62cd1c8c3d0.
+## Routing publication pending
 
-Anonymous HTTPS returned 200 for all nine assets; every remote body matched the local SHA-256. The deployed login page rendered with zero browser console errors. Both local credential values were checked absent from every asset before upload. No private footage, frames, inference output, keys, weights or backend runtime was uploaded as static deployment content. The generated deployment-specific URL uses Vercel authentication; use the public production alias above for ordinary viewing. No deployment protection was changed.
+The two project-level CDN rules still publish the dead warned-bizarre-marker-jerry.trycloudflare.com upstream. Prepared replacements remain unpublished Draft:
 
-The live route is browser or jury client → Vercel CDN external rewrite → Cloudflare Tunnel → A's loopback port 8000 → the existing local GPU worker. Video and API-key headers transit Vercel/Cloudflare; inference remains on A's RTX 4060. The human explicitly authorized this original real-video route after the named-provider/privacy disclosure. Organizer approval is not recorded; this is a temporary integration route, not a claim of competition approval or guaranteed availability. No cloud AI receives case content.
+| Rule | Regex source | Prepared destination |
+| --- | --- | --- |
+| bae0c7ed-7800-40b0-9ded-9d15319104e3 | `^/api/(.*)$` | `https://range-journalism-louisiana-gym.trycloudflare.com/api/$1` |
+| b690a687-2196-42dc-b86c-4dbf55f0f389 | `^/health/(.*)$` | `https://range-journalism-louisiana-gym.trycloudflare.com/health/$1` |
 
-Two project-level **CDN → Routing Rules** are published independently of the static deployment:
+Both use Cache-Control: no-store. Clients provide X-API-Key; no key is in routing or static assets. Prior automatic review rejected Publish and requires fresh action-time confirmation; the owner's last response deferred publication until model work was finished. No later approval is assumed. After authorized publication, verify fresh health, auth scopes and a new synthetic POST/poll/detail/export through the public alias. Do not infer current uptime from historical receipts.
 
-| Rule | Regex source | Rewrite destination | Response header |
-| --- | --- | --- | --- |
-| bae0c7ed-7800-40b0-9ded-9d15319104e3 | `^/api/(.*)$` | `https://warned-bizarre-marker-jerry.trycloudflare.com/api/$1` | `Cache-Control: no-store` |
-| b690a687-2196-42dc-b86c-4dbf55f0f389 | `^/health/(.*)$` | `https://warned-bizarre-marker-jerry.trycloudflare.com/health/$1` | `Cache-Control: no-store` |
+Video and API-key headers traverse Vercel and Cloudflare; inference stays on the local RTX 4060. The owner allowed that transport after disclosure; organizer acceptance is not recorded. Keep this host, portable API and tunnel alive. Tunnel restart changes its hostname; update both rules and verify again. No uptime guarantee is configured. Independent second-PC/network access remains untested.
 
-Use regex mode and `$1`. The first attempted pattern-style parameter was forwarded literally and caused the reported JSON 404; the published regex rules correct it. Credentials are supplied by each client in `X-API-Key`, never embedded in routing configuration or frontend assets.
+## Static update prepared
 
-Measured public path:
+The new checked static build has 11 public assets plus vercel.json, 737,189 bytes, with local frontend notices and no keys/private case material. Vercel Drop cannot update an existing project: each drop creates another project. Update this same project using Git or authenticated CLI, preserving the production alias and CDN rules. Proposed Git source is the supplied public NuraliKuzhagaliev/Datathon repository, branch codex/integration. Main contains only the old baseline and must not be used for this build.
 
-- `/health/ready`: 200, ready=true / mode=server / contract_version=1.0.0; local startup 24.796 s. This is runtime readiness, not detection accuracy.
-- Missing credentials rejected; operator authenticated; jury rejected from operator-only case listing. API/export responses use no-store.
-- New generated rotated/VFR color-bar MOV: 163,478 bytes, real local model, 1.234 s admission and 5.937 s full upload-to-result. UI detail and exported ZIP accessible; four ZIP entries fully CRC checked.
-- New integrity-checked development-only real MOV: 28,718,927 bytes, one accepted / one completed / zero failures; 40.218 s admission including transmission and 60.625 s full client upload-to-result. Jury schema/source-PTS range valid. Private results remain local; only technical aggregates are reported here.
+Build configuration: root repository, Node 24, pnpm 11.25.0, install pnpm install --frozen-lockfile, build pnpm build:web, output apps/web/dist, framework Other. No backend secrets, weights, cases, private release or entire workspace are uploaded. Do not broaden GitHub app access to unrelated private repositories.
 
-Both clients ran on A's host and reached the public HTTPS origin. A separate computer/network has not been verified. B should now run the agreed integration checklist from its own client. Successful transport does not qualify recognition: baseline development recall remains 0/15; real positive/multiple-event correctness and review remain unqualified.
+## Current limits
 
-Existing distinct operator/jury credentials remain in ignored `runtime-data/team-server/credentials.json` on A's computer. The human enters operator locally in the login form; jury is for upload/poll only. Deliver keys privately without pasting them into coding chats, issues or source. A cloud coding reviewer must not inspect authenticated real case lists, video, evidence or semantic reports; use generated synthetic cases for agent-visible work.
+Stable backend 0.3.2 completed all 28 development videos with no technical failures but TP0/TN13/FP0/FN15. Experimental Qwen3.5-4B is rejected; validation is unused. Real positive/multiple-event semantic acceptance is open. Model readiness is not recognition qualification.
 
-Keep A's computer awake, connected and its team server/tunnel running. Do not start heavy model experiments alongside the service. This temporary tunnel changes address on restart, requiring both routing rules to be updated and verified again. No unattended restart or uptime guarantee is configured. The backend admits one active/pending job and returns 429 + Retry-After on saturation. Cloudflare's ordinary 100 MB upload allowance is below the backend's 128 MiB limit; measured 28.7 MB inputs fit. Do not advertise 128 MiB end-to-end support. Jobs use asynchronous POST/poll; the measured public job remained within 300 s.
+Historical 0.3.1 HTTPS receipts documented a synthetic analysis/export in 5.937 s and a 28.7 MB real MOV in 60.625 s, both from this host; they are retained as historical evidence only. Current local portable startup is 38.079 s. New full Windows 0.3.2 real-MOV analysis/export passed locally while the host was connected. The admission limit remains one active/pending task with 429 + Retry-After; no arbitrary-video/queue deadline guarantee or five-long-video qualification is made.
 
-Git-based automatic redeployment is not configured. B can publish a new checked `apps/web/dist` to this same project, or separately configure its Git source to the agreed integration branch with Node 24, pnpm 11.25.0, root build command `pnpm build:web` and output `apps/web/dist`. The old main branch has no implemented web frontend. Never upload the whole local working directory, which also contains ignored private data and models.
-
-Receipts in the parent task outputs: `VERCEL-PUBLIC-BUILD.json`, `VERCEL-HTTPS-VERIFICATION.json`, `VERCEL-CONNECTED-VERIFICATION.json`, `VERCEL-REAL-UPLOAD-VERIFICATION.json`, `VERCEL-CONNECTED-ROUTES.json`, `VERCEL_FOR_B.txt` and public readiness screenshot `CashProof-Public-Health.png`. Preserve the project routing rules when updating static assets. Backend runtime source remains 4a69e19d99b1fbf0e35b6991b0a68a88bd5f0d8d, version 0.3.1 / contract 1.0.0.
+Keys are in ignored runtime-data/team-server/credentials.json. Enter operator locally; jury only uploads/polls. Never paste values or real-case outputs into coding chats, issues or Git. See [common status](PROJECT_STATUS.md) and [A to B](A_TO_B_STATUS.md).

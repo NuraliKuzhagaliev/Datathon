@@ -1,40 +1,45 @@
 # CashProof common engineering status
 
-Updated during the A+B audit on 17 October 2026. The formal work act and detailed local evidence register are in the owner's task outputs; they are not published as repository artifacts. No private footage, descriptions, per-file labels or keys belong in this status.
+Updated 18 October 2026 during the owner's A+B audit. The formal work act and local evidence register are delivered separately in the owner's task outputs. Private footage, descriptions, per-file labels and keys are excluded from the repository.
 
-## Working implementation
+## Implemented and checked
 
-The common React web/Electron interface uses the frozen OpenAPI 1.0.0 and the same Python service. Jury upload/poll, operator review, immutable automatic results, source-linked evidence, preview timestamp mapping and server ZIP export are implemented. A real development MOV has completed through the local API, the packaged Windows app and the historical public HTTPS route. These are execution results, not detection-accuracy qualifications.
+The shared React web/Electron interface uses OpenAPI 1.0.0 and the Python service. Jury upload/poll, operator review, immutable automatic results, source-linked evidence, preview timestamp mapping and server ZIP export are implemented. Real local model execution is verified separately from recognition quality.
 
-Backend 0.3.2 explicitly selects the MOV demuxer, disables external MOV track references and limits native decoding to local file/pipe protocols. A generated playlist/direct-network test made no HTTP requests. The clean stable source passed 24 backend tests; the model-development tree passed 33 with one environment-dependent skip. Contracts and production model/rule selection are unchanged.
+Backend 0.3.2 explicitly selects the MOV demuxer, disables external track references and limits native decoding to local file/pipe protocols. Synthetic network-boundary tests observed no HTTP requests. All 40 unique dataset MOVs fully decoded without error; this is a compatibility check, not held-out model evaluation. The stable suite passed 28 tests (13.14 s).
 
-Frontend tests passed: 38 unit, 20 development browser, 3 production-API browser and 2 production browser scenarios. Desktop checks include 5 original security tests, 4 new resource-integrity tests, 4 Electron scenarios and a separate smoke of the new Connected executable. Synthetic models/inputs test engineering behavior, not Qwen accuracy. See [verification](verification.md) and [the acceptance matrix](../frontend/INTEGRATION_CHECKLIST.md).
+Frontend checks passed: 38 unit, 20 development browser, 3 real-API/synthetic-model browser and 2 production CSP/demo-isolation scenarios. Desktop checks passed 5 security plus 5 resource-integrity tests; 4 shell scenarios and a separate new Connected executable smoke also passed. Counts are suites, not a count of independent requirements. Synthetic cases do not qualify model accuracy.
 
-## Gaps closed by A under the owner's audit instruction
+## Work completed by A in B's scope under the owner's instruction
 
-- Added generated notices for ten installed frontend runtime packages and Open Sans, accessible offline from System and shipped in web/Windows resources. Electron/Chromium notices remain beside the EXE. Native/backend redistribution review remains separate.
-- Corrected login diagnostics: missing API route no longer looks like a missing case; upstream/time-out errors give a recovery action.
-- Found an Electron packaging omission: `assets/rules/.gitkeep` was excluded although listed in the trusted backend manifest. The packaging hook now restores only checked manifest-listed source bytes and hashes every packaged backend file. Corruption, traversal and symlinks fail the build. The prior standalone backend/ZIP is unchanged; the earlier full EXE was functionally exercised but its nested bundle was not hash-complete.
-- Added separate build-output names and an explicit backend-directory option to preserve previous builds while qualifying a replacement.
-- Updated B's integration state and prepared a five-minute demonstration/Q&A procedure. Team rehearsal is still open.
+- Generated full notices for ten installed frontend runtime packages and Open Sans, available offline in System and shipped in web/Windows resources. Electron/Chromium notices remain alongside the executable.
+- Added contextual login/502/504 recovery messages in Russian and English.
+- Fixed Electron's omission of a manifest-listed dotfile. The packaging hook verifies every listed file, restores only verified source bytes and rejects corruption, traversal, symlinks, Windows device paths and unlisted artifacts.
+- Added separate build-output names, explicit backend selection and repeatable private verification destinations, preserving previous releases.
+- Updated the acceptance matrix and five-minute demonstration/two-minute Q&A script. Rehearsal remains open.
 
-## Current qualification limits
+## New private release candidate
 
-The baseline full development evaluation missed every positive example. The EOS-fixed Qwen3.5-4B probe still has both a miss and a false alarm on its fixed four-case sample. A full development comparison is running separately. No experimental model is promoted, no held-out quality or different-camera claim is made, and validation has not been used for tuning. See [model development](../backend/model-development.md).
+The 0.3.2 portable bundle contains 20,531 listed files plus its manifest, 12,290,816,929 bytes. All 17 Python application files match clean runtime source a034fac203af202b16616b3a0b23d3bb3e0226d7. Every one of 20,532 ZIP entries was independently read, CRC checked and SHA-256 verified. The new ZIP is 7,323,884,572 bytes, SHA-256 f840bf51b4facdb915c2de455b3662c371bad3737d79ce3fc70238b229eed4f9. The immutable old 0.3.1 bundle/ZIP is preserved.
 
-The static site is https://cashproof-web.vercel.app . The local API is paused with the owner's authorization for the GPU comparison. The old temporary Cloudflare upstream is dead; two replacement rewrites remain unpublished Vercel Draft. Historical HTTPS receipts are not current uptime. Publication needs the outstanding action-time approval. Original keys and case data are preserved.
+The full 0.3.2 Windows package completed a new real 28,718,927-byte development MOV using its own runtime/model: startup 34.636 s; analysis to visible result 25.882 s. Export, full ZIP CRC/hash checks, reload restoration and owned-backend shutdown passed. No external renderer origins were observed. The host remained connected; this is not disconnected qualification or real-event semantic acceptance.
 
-Independent second-PC/network jury access, organizer acceptance of the relay, host-disconnected Windows execution, real-event semantic acceptance, useful recognition and complete native/binary redistribution review remain open. A prepared disconnected script does not change network settings or start inference in CheckOnly mode. Do not call the product fully qualified while these gates remain unresolved.
+The current local server uses this checked portable runtime, the original keys/case store and contract 1.0.0. Startup was 38.079 s. GPU experiments are finished. Keep the service host available and do not run another heavy model experiment alongside it.
 
-## Reproducible packaging
+## Model findings and decision
 
-From the combined repository, after provisioning the checked backend folder:
+Production 0.3.2 completed all 28 development videos: TP=0, TN=13, FP=0, FN=15; recall 0/15, precision undefined, zero technical failures. Median latency was 3.628 s, sample p95 12.636 s, maximum 23.583 s. Reliable execution has not produced useful recognition.
 
-```powershell
-pnpm check:ui
-pnpm build:web
-node apps/desktop/scripts/package.mjs --connected --output-name connected-audit
-node apps/desktop/scripts/package.mjs --backend-dir <qualified-bundle-folder> --output-name offline-audit
-```
+EOS-fixed experimental Qwen3.5-4B accounted for all 28 development videos: 16 completed, 12 failed (4 deadline, 8 invalid output). Completed matrix TP=0, TN=7, FP=0, FN=9; six additional positives failed. End-to-end positive recall lower bound is 0/15. Completed median was 90.340 s, maximum 244.734 s; failed calls reached 270.543 s. This candidate is rejected for promotion. Earlier selected four-case results are historical probes, not the full-development result. Host engineering work overlapped inference, so these timings are observations under load, not an isolated speed benchmark.
 
-The ordinary `pnpm build:desktop` still consumes `releases/backend`. Copy the entire `win-unpacked` folder, not the EXE alone. A full package includes weights/runtime; Connected intentionally does not. File-integrity and runtime receipts are separate from a disconnected or model-quality qualification. Never replace an immutable archive or manifest to hide a failed check.
+Local structural analysis found 17 parseable experimental responses whose assessed frame was absent from their evidence list. An experimental-only normalization now includes that already-assessed bounded source frame, retaining all legal predicates/context/exclusion gates. Synthetic regression checks passed 13 with one optional-environment skip. No new private evaluation has qualified this fix; it is not in the stable model/runtime and does not alter the measured results above.
+
+Validation 12 remains unused for inference/tuning. Human event-type labels and independent scene/view qualification are absent. No useful recognition, event F1, timestamp accuracy or generalization claim is made. See [model development](../backend/model-development.md).
+
+## Deployment and remaining acceptance
+
+The static site is https://cashproof-web.vercel.app . Its published frontend is the earlier build. The old published temporary upstream is dead; two replacement API/health rewrites remain Vercel Draft, targeting range-journalism-louisiana-gym.trycloudflare.com. Publication still needs the outstanding action-time confirmation. Local readiness and historical HTTPS receipts do not establish current public API readiness.
+
+A new checked static build is prepared. Vercel Drop creates a new project on each upload and cannot update this existing project; the existing project must use Git or CLI for repeatable updates. Never upload the whole local workspace or private release bundle to static hosting.
+
+Useful detection, independent second-PC/network jury access, organizer acceptance of the relay, host-disconnected Windows execution, real-event semantic acceptance, required load/window availability and complete binary redistribution review remain open. The disconnected verifier changes no network settings and its CheckOnly mode starts no inference. Main remains unchanged; use codex/integration and draft PR #3 for review. See [executed evidence](verification.md).

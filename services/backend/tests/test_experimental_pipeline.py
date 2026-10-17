@@ -9,12 +9,20 @@ from native_frames import temporal_patch_times, native_inputs
 
 
 class SyntheticAssessment:
-    def __init__(self, predicate=True, context=True, excluded=False, invalid=False):
+    def __init__(
+        self,
+        predicate=True,
+        context=True,
+        excluded=False,
+        invalid=False,
+        missing_primary=False,
+    ):
         self.predicate, self.context, self.excluded = predicate, context, excluded
         self.invalid = invalid
         self.calls = 0
         self.flag_key = "possible"
         self.negative_screen = False
+        self.missing_primary = missing_primary
 
     def infer(self, frames, prompt, deadline, output_schema=None):
         self.calls += 1
@@ -42,7 +50,7 @@ class SyntheticAssessment:
                 "complete_context": self.context,
                 "exclusion_present": self.excluded,
                 "event_frame_index": 0,
-                "evidence_indices": [0],
+                "evidence_indices": [1, 2, 3] if self.missing_primary else [0],
                 "counterevidence": ["Synthetic exclusion"] if self.excluded else [],
                 "limitations": [] if self.context else ["Synthetic missing context"],
             }
@@ -58,11 +66,15 @@ class SyntheticAssessment:
         (True, True, True, 0),
     ],
 )
+@pytest.mark.parametrize("missing_primary", [False, True])
 def test_compact_assessment_keeps_final_legal_gates(
-    clip, tmp_path, registry, predicate, context, excluded, expected
+    clip, tmp_path, registry, predicate, context, excluded, expected, missing_primary
 ):
-    model = SyntheticAssessment(predicate, context, excluded)
-    detail, _ = CompactPipeline(model, registry).run(
+    model = SyntheticAssessment(
+        predicate, context, excluded, missing_primary=missing_primary
+    )
+    pipeline = CompactPipeline(model, registry)
+    detail, _ = pipeline.run(
         clip, tmp_path, "a" * 32, time.time() + 60, lambda **kwargs: None
     )
     assert len(detail["events"]) == expected
@@ -70,6 +82,14 @@ def test_compact_assessment_keeps_final_legal_gates(
         "violation" if expected else "no_violation"
     )
     assert model.calls == 3  # Both proposed categories assessed even when rejected.
+    assert pipeline.stage_counts["evidence_link_normalizations"] == (
+        2 if missing_primary else 0
+    )
+    for event in detail["model_result"]["violations"]:
+        assert 1 <= len(event["evidence_frames"]) <= 3
+        assert event["timecode_sec"] in {
+            frame["timestamp_sec"] for frame in event["evidence_frames"]
+        }
 
 
 def test_compact_rejects_invented_indices_after_one_repair(clip, tmp_path, registry):

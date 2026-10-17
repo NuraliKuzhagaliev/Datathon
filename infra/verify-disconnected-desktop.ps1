@@ -1,12 +1,13 @@
 param(
     [Parameter(Mandatory=$true)][string]$Node,
+    [string]$Executable,
     [switch]$CheckOnly
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $nodePath = (Resolve-Path -LiteralPath $Node).Path
 $probe = Join-Path $repoRoot 'tools\verify_packaged_desktop.cjs'
-$packaged = Join-Path $repoRoot 'apps\desktop\dist\offline\win-unpacked\CashProof.exe'
+$packaged = if ($Executable) { (Resolve-Path -LiteralPath $Executable).Path } else { Join-Path $repoRoot 'apps\desktop\dist\offline\win-unpacked\CashProof.exe' }
 foreach ($required in @($probe, $packaged, (Join-Path $repoRoot 'private-data\live-browser-integration\input.json'))) {
     if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw 'A prepared local test prerequisite is missing.' }
 }
@@ -41,7 +42,7 @@ New-Item -ItemType Directory -Path $output | Out-Null
 $started = [DateTime]::UtcNow
 $info = [Diagnostics.ProcessStartInfo]::new()
 $info.FileName = $nodePath
-$info.Arguments = '"' + $probe + '"'
+$info.Arguments = '"' + $probe + '" --executable "' + $packaged + '" --output "' + (Join-Path $output 'runtime') + '"'
 $info.WorkingDirectory = $repoRoot
 $info.UseShellExecute = $false
 $info.CreateNoWindow = $true

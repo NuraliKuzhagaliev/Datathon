@@ -29,6 +29,7 @@ class CompactPipeline(Pipeline):
             "incomplete_context": 0,
             "exclusions_present": 0,
             "missing_predicates": 0,
+            "evidence_link_normalizations": 0,
         }
         model.runtime_configuration = getattr(model, "runtime_configuration", {}) | {
             "experimental_pipeline": "compact explicit assessments v1",
@@ -212,8 +213,15 @@ class CompactPipeline(Pipeline):
         )
 
         def parse(value):
-            if value["event_frame_index"] not in value["evidence_indices"]:
-                raise ValueError("Evidence must include assessed instant")
+            primary = value["event_frame_index"]
+            selected = value["evidence_indices"]
+            if primary not in selected:
+                # Every index has already passed the supplied-frame enum. The
+                # assessed instant is authoritative; include its real source
+                # frame, retain up to two selected context frames, and preserve
+                # the untouched raw response in the private request record.
+                selected = [primary, *selected[:2]]
+                self.stage_counts["evidence_link_normalizations"] += 1
             self.stage_counts["verification_assessments"] += 1
             self.stage_counts["incomplete_context"] += not value["complete_context"]
             self.stage_counts["exclusions_present"] += value["exclusion_present"]
@@ -231,7 +239,7 @@ class CompactPipeline(Pipeline):
                     Observation(
                         rule_id=verify.rule_id,
                         event_frame_id=frames[value["event_frame_index"]]["id"],
-                        frame_ids=[frames[i]["id"] for i in value["evidence_indices"]],
+                        frame_ids=[frames[i]["id"] for i in selected],
                         predicates=value["predicates"],
                         applicable=value["applicable"],
                         complete_context=value["complete_context"],
