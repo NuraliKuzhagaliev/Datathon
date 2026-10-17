@@ -53,6 +53,7 @@ class GeneratedGeometryOracle:
             supported = (
                 onset is not None
                 and "At least ONE of these exclusions" not in instruction
+                and "This specific exclusion applies" not in instruction
             )
             result = {
                 "visible_change": "Generated geometry evidence",

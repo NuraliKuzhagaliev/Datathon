@@ -13,7 +13,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
     def __init__(self, model, registry, max_candidates=8):
         super().__init__(model, registry, max_candidates)
         model.runtime_configuration.update(
-            experimental_verifier="occurrence-specific independent checks v4; individually checked exclusions and joint event support",
+            experimental_verifier="occurrence-specific independent checks v5; individual exclusions; dense onset refinement with condition witnesses",
             atomic_verifier_sha256=hashlib.sha256(
                 Path(__file__).read_bytes()
             ).hexdigest(),
@@ -87,7 +87,8 @@ class AtomicFactPipeline(TriggerFactPipeline):
             + (
                 "Proposed occurrence="
                 + json.dumps(focus, separators=(",", ":"))
-                + ". Assess THIS occurrence, not a different one. This is only a proposal, not evidence. "
+                + ". Assess THIS occurrence. This is an approximate sampled hint, not an exact onset or evidence. "
+                "The same continuous action may start in earlier dense frames. Keep separate repeated actions distinct. "
                 if focus
                 else ""
             )
@@ -219,7 +220,8 @@ class AtomicFactPipeline(TriggerFactPipeline):
             + ". Locate the FIRST supportable instant of the proposed event in these actual source frames. "
             + "Proposed occurrence="
             + json.dumps(focus, separators=(",", ":"))
-            + ". Locate THIS occurrence, not another earlier/later occurrence. The proposal is only a hint, not proof. "
+            + ". This coarse sampled hint may be late. Refine to the FIRST supportable dense frame of the SAME action, "
+            "including earlier frames. Keep separate repeated actions distinct. The proposed timestamp is not an onset or proof. "
             "Use the visible action instant, or the instant at which an omitted step first becomes established. "
             "Never select earlier context merely because it is the beginning of the video. "
             "Confirm that ALL conditions are jointly valid for THIS event instant, using before/after context for temporal predicates. "
@@ -227,9 +229,15 @@ class AtomicFactPipeline(TriggerFactPipeline):
             "Earlier independent checks may be mistaken: use contradicted/unobservable joint_support and null event index when joint support is absent. "
             "The event must jointly satisfy all these visually checked conditions: "
             + json.dumps(rule["predicates"], separators=(",", ":"))
-            + "\nCondition evidence indices="
+            + "\nCondition witnesses (first supportable index and evidence)="
             + json.dumps(
-                {k: v["evidence_indices"] for k, v in checks.items()},
+                {
+                    k: {
+                        "first_supported_index": v["first_supported_index"],
+                        "evidence_indices": v["evidence_indices"],
+                    }
+                    for k, v in checks.items()
+                },
                 separators=(",", ":"),
             )
             + "\nSource indices="
