@@ -130,6 +130,20 @@ def main():
         )
     else:
         pipeline = Pipeline(model, registry, a.max_candidates)
+    if a.experimental_compact and a.verify_grounding:
+        from screening_controls import verify as verify_screening
+
+        controls = verify_screening(
+            model,
+            registry,
+            a.output / "synthetic-screening-controls",
+            wordings=[a.screen_wording],
+        )
+        if not all(c["passes_negative_control"] for c in controls):
+            raise RuntimeError(
+                "Synthetic nonhuman negative control failed before private evaluation"
+            )
+        model.technical_calls.clear()
     if a.freeze_from:
         frozen = json.loads(a.freeze_from.read_text(encoding="utf-8"))
         if frozen.get("partial_evaluation") or frozen.get("split") != "development":

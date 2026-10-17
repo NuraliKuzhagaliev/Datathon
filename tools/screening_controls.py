@@ -13,31 +13,24 @@ from cashproof.rules import Registry
 from synthetic_clip import create
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model-dir", type=Path, required=True)
-    parser.add_argument("--rules", type=Path, required=True)
-    parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--native-video", action="store_true")
-    parser.add_argument("--show-synthetic-output", action="store_true")
-    args = parser.parse_args()
-    args.output.mkdir(parents=True, exist_ok=True)
-    source = create(args.output / "generated-pattern.mov", rotated=True)
+def verify(
+    model, registry, output, wordings=("possible", "observed"), show_output=False
+):
+    output.mkdir(parents=True, exist_ok=True)
+    source = create(output / "generated-pattern.mov", rotated=True)
     timeline = media.decode_timeline(source, time.time() + 30)
     frames = list(
         media.extract(
             source,
             timeline,
             media.sample_indices(timeline),
-            args.output / "frames",
+            output / "frames",
             time.time() + 30,
         ).values()
     )
-    registry = Registry(args.rules)
-    model = CandidateModel(args.model_dir, compact=True, native_video=args.native_video)
     results = []
-    for wording in ["possible", "observed"]:
-        directory = args.output / wording
+    for wording in wordings:
+        directory = output / wording
         directory.mkdir(exist_ok=True)
         pipeline = CompactPipeline(model, registry, screen_wording=wording)
         screen = pipeline.ask(frames, None, time.time() + 90, directory)
@@ -72,7 +65,7 @@ def main():
         }
         results.append(metrics)
         print(json.dumps(metrics), flush=True)
-        if args.show_synthetic_output:
+        if show_output:
             for path in sorted(directory.glob("*.json")):
                 value = json.loads(path.read_text(encoding="utf-8"))
                 print(
@@ -84,7 +77,7 @@ def main():
                     ),
                     flush=True,
                 )
-    (args.output / "aggregate.json").write_text(
+    (output / "aggregate.json").write_text(
         json.dumps(
             {
                 "model_version": model.version,
@@ -94,6 +87,31 @@ def main():
             indent=2,
         ),
         encoding="utf-8",
+    )
+    return results
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model-dir", type=Path, required=True)
+    parser.add_argument("--rules", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--native-video", action="store_true")
+    parser.add_argument("--show-synthetic-output", action="store_true")
+    parser.add_argument(
+        "--wordings",
+        nargs="+",
+        choices=["possible", "observed"],
+        default=["possible", "observed"],
+    )
+    args = parser.parse_args()
+    model = CandidateModel(args.model_dir, compact=True, native_video=args.native_video)
+    verify(
+        model,
+        Registry(args.rules),
+        args.output,
+        args.wordings,
+        args.show_synthetic_output,
     )
 
 
