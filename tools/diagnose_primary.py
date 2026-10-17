@@ -67,6 +67,24 @@ def question(frames):
         "No annotations or class labels are supplied. JSON="
         + json.dumps(schema, separators=(",", ":"))
     )
+    if any(frame.get("view_kind") == "auxiliary_crop" for frame in frames):
+        prompt += (
+            "\nThese images alternate full source frames and auxiliary source-pixel crops at the SAME source instant. "
+            "Use crops for detail and full frames for context. Repeated timestamps are different views, not separate event occurrences. "
+            "A crop cannot establish the absence of anything outside it. Source views="
+            + json.dumps(
+                [
+                    {
+                        "index": i,
+                        "view": frame.get("view_kind", "full"),
+                        "source_seconds": frame["timestamp_sec"],
+                        "crop_box": frame.get("source_crop_box"),
+                    }
+                    for i, frame in enumerate(frames)
+                ],
+                separators=(",", ":"),
+            )
+        )
     return prompt, schema
 
 
