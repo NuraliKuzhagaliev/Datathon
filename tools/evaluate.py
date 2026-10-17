@@ -37,6 +37,7 @@ def main():
     p.add_argument("--experimental-atomic-verifier", action="store_true")
     p.add_argument("--experimental-gguf-runtime", type=Path)
     p.add_argument("--gguf-provision-receipt", type=Path)
+    p.add_argument("--gguf-conversion-receipt", type=Path)
     p.add_argument("--experimental-precision", choices=["nf4", "bf16"], default="nf4")
     p.add_argument(
         "--experimental-screen-pixels",
@@ -67,6 +68,10 @@ def main():
     a = p.parse_args()
     if a.experimental_fact_screen:
         a.experimental_compact = True
+    if a.gguf_conversion_receipt and not a.experimental_gguf_runtime:
+        raise ValueError(
+            "Converted receipt requires the explicit local GGUF experiment"
+        )
     if a.experimental_trigger_screen and not a.experimental_fact_screen:
         raise ValueError(
             "Visual trigger proposals require explicit fact-screen experiment"
@@ -136,6 +141,7 @@ def main():
                 a.gguf_provision_receipt,
                 private_dir,
                 screen_pixels=a.experimental_screen_pixels,
+                conversion_receipt=a.gguf_conversion_receipt,
             )
 
         model = make_gguf(a.output / "private-runtime")
@@ -171,11 +177,17 @@ def main():
                 raise RuntimeError("Boolean grammar failed before private evaluation")
         from visual_grounding import verify
 
-        if not verify(model, a.output / "synthetic-grounding")[
-            "passed_number_color_controls"
-        ]:
+        visual_controls = verify(model, a.output / "synthetic-grounding")
+        if not visual_controls["passed_number_color_controls"]:
             raise RuntimeError(
                 "Synthetic visual grounding failed before private evaluation"
+            )
+        if (
+            a.experimental_trigger_screen
+            and visual_controls["figure_count_correct"] != visual_controls["cases"]
+        ):
+            raise RuntimeError(
+                "Synthetic person-count recovery control failed before private evaluation"
             )
         if a.native_video or a.experimental_fact_screen:
             from temporal_grounding import verify as verify_temporal

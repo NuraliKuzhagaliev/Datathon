@@ -63,6 +63,7 @@ class GeneratedGeometryOracle:
         elif "event_frame_index" in properties and "predicates" not in properties:
             result = {
                 "visible_change": "Generated crossing",
+                "joint_support": "supported",
                 "event_frame_index": onset,
                 "evidence_indices": [onset],
             }

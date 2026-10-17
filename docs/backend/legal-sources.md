@@ -15,3 +15,9 @@ The service does not determine identity, authority, intent, ledger correctness o
 ## Common audit refresh
 
 The official rendered portal was reopened on 17 October 2026 during the A+B audit. A plain HTTP reader returned only its JavaScript shell; browser rendering exposed the complete public text. The first paragraphs of §§20, 21, 22, 24, 25 and 42 match the original snapshot after reconstructing accessibility text/link fragments. Bag-integrity/seal subclauses and §42's ordinary-customer exception are present in both. The existing registry and source hash were preserved. The nonsemantic receipt is `outputs/project-audit/LEGAL-SOURCE-REFRESH.json` in the task outputs, outside this repository. This selected-text comparison does not certify whole-document equivalence or eligibility of a particular video event.
+
+## Storage-scope correction, 18 October 2026
+
+The official rendered text of §20 was read again during model research. It requires previously received cash to be kept in the specified storage devices; it does not add a requirement that the next receipt has already begun. The earlier experimental storage rule incorrectly required `next_receipt_ongoing`. Registry2026-10-18.1 removes that extra prerequisite. Continuous visible provenance through completion of the earlier receipt, exposed cash and exclusion of ordinary current-client/internal handling remain required. A drawer's exterior cannot establish its locking state. These conditions are an operational interpretation for possible visible signs, not a legal opinion about an individual case.
+
+The storage category remains disabled in the public runtime registry until measured local validation. The already running six-category development experiment retains its frozen private registry and cannot measure this correction. New storage/seven-category experiments require separate fingerprints and results. Official source: [Resolution No.231, §20](https://adilet.zan.kz/rus/docs/V1900019680).

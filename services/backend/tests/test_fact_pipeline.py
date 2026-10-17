@@ -122,3 +122,38 @@ def test_identical_visual_question_is_reused_only_within_the_same_window(tmp_pat
         assert {e.rule_id for e in result.events} == set(rules)
         assert all(e.event_frame_id == f"f{i}" for e in result.events)
     assert model.calls == 4  # Separate inventory and one visual question per window.
+
+
+@pytest.mark.parametrize(
+    "count,expected,rechecks", [(1, 2, 1), (0, 0, 3), (None, 0, 3)]
+)
+def test_negative_inventory_is_confirmed_without_turning_uncertainty_into_absence(
+    registry, tmp_path, count, expected, rechecks
+):
+    class CountedModel(FactModel):
+        def infer(self, frames, prompt, deadline, output_schema=None):
+            if "people_count" in output_schema["properties"]:
+                self.calls += 1
+                return json.dumps(
+                    {
+                        "visible_detail": "Generated geometry only",
+                        "people_count": count,
+                        "visibility_limited": False,
+                    }
+                )
+            return super().infer(frames, prompt, deadline, output_schema)
+
+    model = CountedModel(
+        state="observed" if count else "absent", indices=[0], people=False
+    )
+    pipeline = TriggerFactPipeline(model, registry)
+    result = pipeline.ask(
+        [{"id": f"f{i}", "timestamp_sec": float(i)} for i in range(3)],
+        None,
+        time.time() + 60,
+        tmp_path / "private",
+    )
+    assert len(result.events) == expected
+    assert pipeline.stage_counts["person_absence_rechecks"] == rechecks
+    assert pipeline.stage_counts["false_absence_recoveries"] == int(count == 1)
+    assert result.visibility_limited is (count is None)

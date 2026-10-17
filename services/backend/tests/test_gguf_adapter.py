@@ -82,3 +82,37 @@ def test_truncated_json_is_a_failure_even_if_parseable():
         assert failure.value.code == "MODEL_OUTPUT_INVALID"
     finally:
         model.client.close()
+
+
+def test_timeout_stops_only_owned_runtime_and_prevents_stale_reuse():
+    calls = []
+
+    def timeout(request):
+        calls.append(request.url.host)
+        raise httpx.ReadTimeout(
+            "Private transport details must not escape", request=request
+        )
+
+    class OwnedProcess:
+        stopped = False
+
+        def poll(self):
+            return 0 if self.stopped else None
+
+        def terminate(self):
+            self.stopped = True
+
+        def wait(self, timeout):
+            return 0
+
+    model = adapter(timeout)
+    model.process = OwnedProcess()
+    with pytest.raises(ProcessingError) as failure:
+        model.infer([], "synthetic", time.time() + 5)
+    assert failure.value.code == "DEADLINE_EXCEEDED"
+    assert "Private transport" not in str(failure.value)
+    assert model.closed and model.client.is_closed and model.process.stopped
+    with pytest.raises(ProcessingError) as unavailable:
+        model.infer([], "synthetic", time.time() + 5)
+    assert unavailable.value.code == "MODEL_UNAVAILABLE"
+    assert calls == ["127.0.0.1"]

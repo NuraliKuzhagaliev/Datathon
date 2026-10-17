@@ -145,7 +145,7 @@ def verify(model, directory, pipeline_class, extended=False):
         "source_time_end_to_end": True,
         "passed": all(r["passed"] and r["decoded_vfr"] for r in rows),
         "cases": rows,
-        "meaning": "Generated MOV -> actual decode/sample -> fact screen -> unchanged final verifier -> source PTS/evidence. Not bank-event accuracy.",
+        "meaning": "Generated MOV -> actual decode/sample -> the candidate's real screen and final checks -> source PTS/evidence. Not bank-event accuracy.",
     }
     (directory / "aggregate.json").write_text(
         json.dumps(aggregate, indent=2), encoding="utf-8"

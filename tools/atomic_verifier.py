@@ -13,7 +13,7 @@ class AtomicFactPipeline(TriggerFactPipeline):
     def __init__(self, model, registry, max_candidates=8):
         super().__init__(model, registry, max_candidates)
         model.runtime_configuration.update(
-            experimental_verifier="occurrence-specific independent checks v2; short-circuit rejection without weakening any gate",
+            experimental_verifier="occurrence-specific independent checks v3; explicit joint support at final event time",
             atomic_verifier_sha256=hashlib.sha256(
                 Path(__file__).read_bytes()
             ).hexdigest(),
@@ -25,7 +25,9 @@ class AtomicFactPipeline(TriggerFactPipeline):
             model.runtime_configuration,
         )
         self.stage_counts.update(
-            atomic_predicate_checks=0, atomic_unobservable_checks=0
+            atomic_predicate_checks=0,
+            atomic_unobservable_checks=0,
+            joint_conditions_rejected=0,
         )
         self.uncertainty_spans = []
 
@@ -192,16 +194,25 @@ class AtomicFactPipeline(TriggerFactPipeline):
             "additionalProperties": False,
             "properties": {
                 "visible_change": {"type": "string", "minLength": 1, "maxLength": 120},
-                "event_frame_index": index,
+                "joint_support": {
+                    "type": "string",
+                    "enum": ["supported", "contradicted", "unobservable"],
+                },
+                "event_frame_index": {"anyOf": [index, {"type": "null"}]},
                 "evidence_indices": {
                     "type": "array",
-                    "minItems": 1,
+                    "minItems": 0,
                     "maxItems": 3,
                     "uniqueItems": True,
                     "items": index,
                 },
             },
-            "required": ["visible_change", "event_frame_index", "evidence_indices"],
+            "required": [
+                "visible_change",
+                "joint_support",
+                "event_frame_index",
+                "evidence_indices",
+            ],
         }
         prompt = (
             "Candidate="
@@ -212,6 +223,9 @@ class AtomicFactPipeline(TriggerFactPipeline):
             + ". Locate THIS occurrence, not another earlier/later occurrence. The proposal is only a hint, not proof. "
             "Use the visible action instant, or the instant at which an omitted step first becomes established. "
             "Never select earlier context merely because it is the beginning of the video. "
+            "Confirm that ALL conditions are jointly valid for THIS event instant, using before/after context for temporal predicates. "
+            "Do not combine unrelated occurrences or conditions that stopped applying before this event. "
+            "Earlier independent checks may be mistaken: use contradicted/unobservable joint_support and null event index when joint support is absent. "
             "The event must jointly satisfy all these visually checked conditions: "
             + json.dumps(rule["predicates"], separators=(",", ":"))
             + "\nCondition evidence indices="
@@ -232,11 +246,22 @@ class AtomicFactPipeline(TriggerFactPipeline):
         )
 
         def parse(value):
-            if value["event_frame_index"] not in value["evidence_indices"]:
+            if value["joint_support"] == "supported" and (
+                value["event_frame_index"] is None
+                or value["event_frame_index"] not in value["evidence_indices"]
+            ):
                 raise ValueError("Final event time must be linked to actual evidence")
             return value
 
         located = self._request(frames, prompt, schema, deadline, private_dir, parse)
+        if located["joint_support"] != "supported":
+            self.stage_counts["joint_conditions_rejected"] += 1
+            limited = located["joint_support"] == "unobservable"
+            if limited:
+                self.uncertainty_spans.append(
+                    (frames[0]["timestamp_sec"], frames[-1]["timestamp_sec"])
+                )
+            return WindowOutput(events=[], visibility_limited=limited)
         self.stage_counts["eligible_assessments"] += 1
         return WindowOutput(
             events=[

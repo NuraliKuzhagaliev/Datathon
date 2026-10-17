@@ -20,6 +20,13 @@ from cashproof.errors import ProcessingError
 
 
 RECEIPT_SHA256 = "10eecab14d30fa89571103c4ad68127ba811c2d338a794a215738869647d3207"
+CONVERTED_RECEIPT_SHA256 = (
+    "a5f42b2eef703276a0457d9bb81c89e3932190bb741c99c7bba930417467019c"
+)
+CONVERTED_WEIGHTS = {
+    "Qwen3.5-4B-Q8_0.gguf": "34af4c3c962821de6cf93f17422a83c5333a5c2c4dc6377d93ad2c17042e8969",
+    "mmproj-Qwen3.5-4B-F16.gguf": "659b59dd44b73b1cd34af6cc424669484b06dc80f4340adf8ea84ad776eef813",
+}
 WEIGHTS = {
     "Qwen3VL-8B-Instruct-Q4_K_M.gguf": "67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2",
     "mmproj-Qwen3VL-8B-Instruct-F16.gguf": "ca524100ebf825c9a870db1c580d03879e0da0ab2541697e2458e64891cf9d38",
@@ -84,6 +91,7 @@ class GGUFModel:
         private_dir,
         screen_pixels=131072,
         cache_prompt=True,
+        conversion_receipt=None,
     ):
         self.process = None
         self.client = None
@@ -98,12 +106,34 @@ class GGUFModel:
         manifest = json.loads(
             (model_dir / "cashproof-manifest.json").read_text(encoding="utf-8")
         )
-        if (
+        converted = manifest["repo_id"] == "local/Qwen3.5-4B-GGUF"
+        expected_weights = WEIGHTS
+        if converted:
+            if conversion_receipt is None:
+                raise ValueError(
+                    "Converted checkpoint requires its pinned conversion receipt"
+                )
+            conversion_blob = conversion_receipt.read_bytes()
+            if hashlib.sha256(conversion_blob).hexdigest() != CONVERTED_RECEIPT_SHA256:
+                raise ValueError("Unexpected conversion receipt")
+            conversion = json.loads(conversion_blob)
+            if (
+                manifest != conversion["model"]
+                or manifest["revision"] != "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+            ):
+                raise ValueError("Unexpected converted checkpoint")
+            expected_weights = CONVERTED_WEIGHTS
+        elif (
             manifest != provision["model"]
             or manifest["revision"] != "f982a07559d4a2f6c8744d840bf6fccab30eea96"
+            or conversion_receipt is not None
         ):
             raise ValueError("Unexpected GGUF checkpoint")
-        if {f["path"]: f["sha256"] for f in manifest["files"]} != WEIGHTS:
+        if {
+            f["path"]: f["sha256"]
+            for f in manifest["files"]
+            if f["path"] in expected_weights
+        } != expected_weights:
             raise ValueError("Unpinned GGUF weights")
         for item in manifest["files"]:
             checked_file(model_dir, item)
@@ -122,7 +152,11 @@ class GGUFModel:
             "screening_max_new_tokens": 384,
             "verification_max_new_tokens": 1024,
             "visual_input": "ordered images with source PTS",
-            "quantization": "Q4_K_M, F16 vision projector; q8_0 KV cache",
+            "quantization": ("Q8_0" if converted else "Q4_K_M")
+            + ", F16 vision projector; q8_0 KV cache",
+            "conversion_receipt_sha256": CONVERTED_RECEIPT_SHA256
+            if converted
+            else None,
             "runtime_release": "llama.cpp b11715 CUDA 12.4",
             "runtime_receipt_sha256": RECEIPT_SHA256,
             "adapter_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),

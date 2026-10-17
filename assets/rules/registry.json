@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-17.3",
+  "version": "2026-10-18.1",
   "rules": [
     {
       "public": {
@@ -101,7 +101,7 @@
         "clause": "пункт 20",
         "revision": "Консолидированный текст Adilet, проверен 17.10.2026; содержит поправки 30.06.2026; выбранные пункты без пометки об изменении.",
         "effective_date": "2020-01-01",
-        "applicability": "Ранее принятые деньги после завершения предыдущего приема во время следующего приема; текущие деньги клиента на рабочем месте допускаются.",
+        "applicability": "Непрерывно прослеженные ранее принятые наличные после видимого завершения их приема остаются вне устройства хранения; начало следующего приема не является обязательным условием. Деньги текущего обслуживаемого клиента на рабочем месте допускаются.",
         "exclusions": [
           "Деньги текущего обслуживаемого клиента.",
           "Внутренняя упаковка, пересчет или сдача денег.",
@@ -112,16 +112,13 @@
         "source_sha256": "287c2d76f266c49ef0261719a3bb9722f0fb77499b78632b11390fb1239d6b94"
       },
       "predicates": {
-        "earlier_receipt_closed": "Visible completion of an earlier cash receipt with continuous object tracking, without identity or ledger inference.",
+        "earlier_receipt_closed": "The earlier incoming-cash service visibly completes; the same received cash is continuously tracked through that completion, without identity or ledger inference. A new customer or subsequent receipt is not required.",
         "same_cash_exposed": "The same previously received cash remains visibly outside any storage device.",
-        "next_receipt_ongoing": "A subsequent incoming-cash service sequence establishes that these are prior funds, not the current client's working cash.",
         "not_internal_handling": "Visible context excludes internal packing, recount, transfer or ordinary handling of current client funds."
       },
       "candidate_triggers": [
         "earlier_receipt_closed",
-        "same_cash_exposed",
-        "next_receipt_ongoing",
-        "not_internal_handling"
+        "same_cash_exposed"
       ],
       "context": "Полная видимая последовательность до и после события; проверка добросовестного объяснения. Не выводить отсутствие из окклюзии.",
       "snapshot": "sources/V1900019680-2026-10-17.ax.txt",

@@ -24,6 +24,7 @@ class FactPipeline(CompactPipeline):
     QUESTIONS = FACTS
     REUSE_QUESTIONS = False
     DESCRIBE_ACTION = False
+    CONFIRM_NO_PEOPLE = False
     SCREEN_VERSION = "visual inventory then independent short action questions v2"
 
     def __init__(self, model, registry, max_candidates=8):
@@ -47,6 +48,8 @@ class FactPipeline(CompactPipeline):
             scene_calls=0,
             scenes_without_people=0,
             question_calls=0,
+            person_absence_rechecks=0,
+            false_absence_recoveries=0,
         )
 
     def ask(self, frames, verify, deadline, private_dir):
@@ -76,12 +79,51 @@ class FactPipeline(CompactPipeline):
             lambda value: value,
         )
         self.stage_counts["scene_calls"] += 1
-        if not scene["people_visible"]:
+        allow_questions = scene["people_visible"]
+        scene_limited = scene["visibility_limited"]
+        if not allow_questions and self.CONFIRM_NO_PEOPLE:
+            count_schema = {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "visible_detail": {"type": "string", "maxLength": 80},
+                    "people_count": {
+                        "anyOf": [
+                            {"type": "integer", "minimum": 0, "maximum": 100},
+                            {"type": "null"},
+                        ]
+                    },
+                    "visibility_limited": {"type": "boolean"},
+                },
+                "required": ["visible_detail", "people_count", "visibility_limited"],
+            }
+            absence_confirmed = True
+            for index in sorted({0, len(frames) // 2, len(frames) - 1}):
+                count = self._request(
+                    [frames[index]],
+                    "Briefly name what is visible in this ONE image, then count visible real people OR drawn human stick figures. Human-shaped drawings count as figures here. Abstract colors, numbers and furniture are not people. If not resolvable use null, not zero. JSON="
+                    + json.dumps(count_schema, separators=(",", ":")),
+                    count_schema,
+                    deadline,
+                    private_dir,
+                    lambda value: value,
+                )
+                self.stage_counts["person_absence_rechecks"] += 1
+                scene_limited |= (
+                    count["visibility_limited"] or count["people_count"] is None
+                )
+                if count["people_count"] is None or count["visibility_limited"]:
+                    absence_confirmed = False
+                if count["people_count"] is not None and count["people_count"] > 0:
+                    allow_questions = True
+                    absence_confirmed = False
+                    self.stage_counts["false_absence_recoveries"] += 1
+                    break
+            allow_questions |= not absence_confirmed
+        if not allow_questions:
             self.stage_counts["scenes_without_people"] += 1
             self.stage_counts["screening_calls"] += 1
-            return ScreenOutput(
-                events=[], visibility_limited=scene["visibility_limited"]
-            )
+            return ScreenOutput(events=[], visibility_limited=scene_limited)
         frame_index = {"type": "integer", "enum": list(range(len(frames)))}
         schema = {
             "type": "object",
@@ -111,7 +153,7 @@ class FactPipeline(CompactPipeline):
         ]
         events = []
         answers = {}
-        limited = scene["visibility_limited"]
+        limited = scene_limited
         for key, rule in self.registry.enabled.items():
             question = self.QUESTIONS.get(key, " / ".join(rule["predicates"].values()))
             prompt = (
@@ -192,8 +234,9 @@ class TriggerFactPipeline(FactPipeline):
 
     REUSE_QUESTIONS = True
     DESCRIBE_ACTION = True
+    CONFIRM_NO_PEOPLE = True
 
-    SCREEN_VERSION = "visual trigger proposals v4; direct visual change before decision; shared identical questions within one window"
+    SCREEN_VERSION = "visual trigger proposals v5; confirm negative people inventory on separate source frames; direct visual change before decision"
     QUESTIONS = {
         "NB231-22": FACTS["NB231-22"],
         "NB231-20-PRESENCE": "A person visibly counts, sorts or packs banknotes or coins. Merely touching a desk or handling ordinary papers is not cash handling. Customer presence does not determine whether this action occurs.",

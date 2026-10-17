@@ -5,6 +5,7 @@ import pytest
 
 from atomic_verifier import AtomicFactPipeline
 from cashproof.inference.pipeline import ScreenCandidate
+from cashproof.errors import ProcessingError
 
 
 class ScriptedChecks:
@@ -17,6 +18,7 @@ class ScriptedChecks:
             return json.dumps(
                 {
                     "visible_change": "Generated event",
+                    "joint_support": "supported",
                     "event_frame_index": 2,
                     "evidence_indices": [2],
                 }
@@ -67,6 +69,62 @@ def test_distinct_occurrences_are_distinguishable_to_every_visual_check(
         )
     assert len(prompts[0]) == len(prompts[1]) == 5
     assert all(a != b for a, b in zip(prompts[0], prompts[1]))
+
+
+def test_missing_proposed_source_frame_is_a_technical_error(registry, tmp_path):
+    model = ScriptedChecks(["supported", "supported", "supported", "contradicted"])
+    candidate = ScreenCandidate(
+        rule_id="TEST-A",
+        event_frame_id="invented",
+        frame_ids=["invented"],
+        predicates={"observed": True},
+        applicable=True,
+    )
+    with pytest.raises(ProcessingError) as failure:
+        AtomicFactPipeline(model, registry).ask(
+            [{"id": "f0", "timestamp_sec": 0}],
+            candidate,
+            time.time() + 60,
+            tmp_path / "private",
+        )
+    assert failure.value.code == "ANALYSIS_INCOMPLETE"
+
+
+@pytest.mark.parametrize("joint_support", ["contradicted", "unobservable"])
+def test_individual_witnesses_do_not_force_a_joint_event(
+    registry, tmp_path, joint_support
+):
+    class NonJointChecks(ScriptedChecks):
+        def infer(self, frames, instruction, deadline, output_schema=None):
+            if "joint_support" in output_schema["properties"]:
+                return json.dumps(
+                    {
+                        "visible_change": "Generated unrelated conditions",
+                        "joint_support": joint_support,
+                        "event_frame_index": None,
+                        "evidence_indices": [],
+                    }
+                )
+            return super().infer(frames, instruction, deadline, output_schema)
+
+    model = NonJointChecks(["supported", "supported", "supported", "contradicted"])
+    pipeline = AtomicFactPipeline(model, registry)
+    candidate = ScreenCandidate(
+        rule_id="TEST-A",
+        event_frame_id="f2",
+        frame_ids=["f2"],
+        predicates={"observed": True},
+        applicable=True,
+    )
+    result = pipeline.ask(
+        [{"id": f"f{i}", "timestamp_sec": float(i)} for i in range(3)],
+        candidate,
+        time.time() + 60,
+        tmp_path / "private",
+    )
+    assert result.events == []
+    assert result.visibility_limited is (joint_support == "unobservable")
+    assert pipeline.stage_counts["joint_conditions_rejected"] == 1
 
 
 @pytest.mark.parametrize(
