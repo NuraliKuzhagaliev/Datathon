@@ -3,6 +3,7 @@ import { CheckCircle2, Download, FlaskConical, Play, ScanLine, ShieldCheck, XCir
 import { useI18n } from '../i18n';
 import { ambiguousIndices, crossingsFromSides, refineInBrowser, type Side, type SourceFrame } from './syntheticGeometry';
 import '../styles/synthetic-lab.css';
+import { CloudSynthetic } from './CloudSynthetic';
 
 type Recording = {
   id: string; title_ru: string; title_en: string; video_url: string; video_sha256: string;
@@ -75,14 +76,23 @@ function RecordedCase({ item }: { item: Recording }) {
 export function SyntheticLab() {
   const { locale } = useI18n(); const text = (ru: string, en: string) => locale === 'en' ? en : ru;
   const [data, setData] = useState<Recordings>(), [selected, setSelected] = useState('near_line_start'), [failed, setFailed] = useState(false), [attempt, setAttempt] = useState(0);
+  const [mode, setMode] = useState<'cloud' | 'recorded'>('cloud');
   useEffect(() => { const controller = new AbortController(); setFailed(false); void loadRecordings(controller.signal).then(setData).catch(() => { if (!controller.signal.aborted) setFailed(true); }); return () => controller.abort(); }, [attempt]);
   const item = data?.cases.find(c => c.id === selected);
-  return <section className="page synthetic-lab"><div className="eyebrow"><FlaskConical size={15}/> {text('СИНТЕТИЧЕСКАЯ ЛАБОРАТОРИЯ', 'SYNTHETIC LAB')}</div><h1>{text('От наблюдения к точному моменту', 'From observation to an exact moment')}</h1><p className="page-description">{text('Сохранённые ответы Gemini и работающая проверка геометрии. Выберите пример, воспроизведите видео и пересчитайте результат на своём устройстве.', 'Recorded Gemini responses and working geometry verification. Choose an example, play the video, and recompute the result on your device.')}</p>
-    <div className="lab-scope"><ShieldCheck size={22}/><div><strong>{text('Только сгенерированные фигуры · без API-ключа · без расходов', 'Generated shapes only · no API key · no charges')}</strong><p>{text('Это демонстрация направления и времени событий. Она не определяет нарушения банковских процедур и не принимает пользовательские видео.', 'This demonstrates event direction and timing. It does not detect bank-procedure violations or accept uploaded videos.')}</p></div></div>
-    <div className="lab-metrics"><div><strong>8</strong><span>{text('синтетических сценариев', 'synthetic scenarios')}</span></div><div><strong>8/8</strong><span>{text('прошли повторную обработку записей', 'passed recorded-response replay')}</span></div><div><strong>3/8</strong><span>{text('завершено в последнем API-прогоне', 'completed in the latest API run')}</span></div><div><strong>$0</strong><span>{text('API-расходы этого демо', 'API charges for this demo')}</span></div></div>
-    <p className="lab-quota">{text('Последний свежий прогон остановлен на бесплатном лимите 20/20 запросов в день. На этой странице новые запросы Gemini не выполняются.', 'The latest fresh run stopped at the free daily limit of 20/20 requests. This page makes no new Gemini requests.')}</p>
+  return <section className="page synthetic-lab">
+    <div className="eyebrow"><FlaskConical size={15}/> {text('СИНТЕТИЧЕСКАЯ ЛАБОРАТОРИЯ', 'SYNTHETIC LAB')}</div>
+    <h1>{text('От наблюдения к точному моменту', 'From observation to an exact moment')}</h1>
+    <p className="page-description">{text('Запустите Gemini на облачном сервере Render или исследуйте сохранённые ответы. Результат самой модели показан отдельно от измерения геометрии.', 'Run Gemini through the Render cloud server or explore recorded responses. The model result is shown separately from pixel geometry.')}</p>
+    <div className="lab-scope"><ShieldCheck size={22}/><div><strong>{text('Только сгенерированные фигуры · бесплатные режимы', 'Generated shapes only · free modes')}</strong><p>{text('Это демонстрация направления и времени событий. Она не определяет нарушения банковских процедур и не принимает пользовательские видео.', 'This demonstrates event direction and timing. It does not detect bank-procedure violations or accept uploaded videos.')}</p></div></div>
+    <div className="lab-mode" role="group" aria-label={text('Режим лаборатории', 'Laboratory mode')}>
+      <button aria-pressed={mode === 'cloud'} onClick={() => setMode('cloud')}>{text('Облачный анализ', 'Cloud analysis')}</button>
+      <button aria-pressed={mode === 'recorded'} onClick={() => setMode('recorded')}>{text('Записанные примеры', 'Recorded examples')}</button>
+    </div>
+    {mode === 'recorded' && <><div className="lab-metrics"><div><strong>8</strong><span>{text('синтетических сценариев', 'synthetic scenarios')}</span></div><div><strong>8/8</strong><span>{text('прошли повторную обработку записей', 'passed recorded-response replay')}</span></div><div><strong>3/8</strong><span>{text('завершено в архивном API-прогоне', 'completed in the archived API run')}</span></div><div><strong>$0</strong><span>{text('API-расходы записанного режима', 'API charges for recorded mode')}</span></div></div>
+    <p className="lab-quota">{text('Архив Gemini 2.5 Flash: свежий прогон остановился на бесплатном лимите 20/20. В записанном режиме новые запросы Gemini не выполняются.', 'Gemini 2.5 Flash archive: the fresh run stopped at the free daily limit of 20/20. Recorded mode makes no new Gemini requests.')}</p></>}
     {failed && <div role="alert" className="notice">{text('Не удалось загрузить демонстрационные записи.', 'Could not load demo recordings.')} <button className="text-button" onClick={() => setAttempt(v => v + 1)}>{text('Повторить', 'Retry')}</button></div>}
     {!data && !failed && <p role="status">{text('Загрузка синтетических примеров…', 'Loading synthetic examples…')}</p>}
-    {data && item && <div className="lab-workspace"><nav aria-label={text('Синтетические сценарии', 'Synthetic scenarios')} className="lab-scenarios">{data.cases.map((c, i) => <button key={c.id} aria-current={selected === c.id ? 'true' : undefined} onClick={() => setSelected(c.id)}><span className="lab-number">{String(i + 1).padStart(2, '0')}</span><span>{locale === 'en' ? c.title_en : c.title_ru}</span><Play size={14}/></button>)}</nav><RecordedCase key={item.id} item={item}/></div>}
+    {data && item && <div className="lab-workspace"><nav aria-label={text('Синтетические сценарии', 'Synthetic scenarios')} className="lab-scenarios">{data.cases.map((c, i) => <button key={c.id} aria-current={selected === c.id ? 'true' : undefined} onClick={() => setSelected(c.id)}><span className="lab-number">{String(i + 1).padStart(2, '0')}</span><span>{locale === 'en' ? c.title_en : c.title_ru}</span><Play size={14}/></button>)}</nav>
+    {mode === 'cloud' ? <CloudSynthetic scenario={item.id} title={locale === 'en' ? item.title_en : item.title_ru} videoUrl={item.video_url} duration={item.duration_sec} sourceHash={item.video_sha256}/> : <RecordedCase key={item.id} item={item}/>}</div>}
   </section>;
 }
