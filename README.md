@@ -79,12 +79,32 @@ Read [AGENTS.md](AGENTS.md), the [shared contract](forte_handoff/SHARED_CONTRACT
 
 The [architecture](docs/backend/architecture.md), [integration evidence](docs/integration/verification.md), [desktop launch schema](packages/contracts/desktop-launch.schema.json) and `tools/build_bundle.py` cover the release handoff. The bundle builder refuses missing prerequisites. A source folder, mock result or assembled bundle alone is not offline proof.
 
-The current public route is Vercel CDN → Cloudflare Tunnel → local inference. The human approved real-video transport after disclosure; organizer approval is not recorded. Historical synthetic and real uploads passed through the earlier public route from this host; that upstream is now dead and replacement rewrites are not yet published. An independent client/network and continuous jury-window availability remain unverified. The temporary upstream changes on restart; update both project routing rules before use. This route is an integration service, not a competition-readiness claim.
+The current synthetic laboratory runs at https://cashproof-web.vercel.app/#synthetic-lab
+through Vercel `/api/synthetic/*` to Render Free and Gemini Free Tier. No local
+PC, GPU, API process or tunnel is needed. The former Cloudflare project routes
+are disabled. Arbitrary uploads and the real-video jury detector remain disabled;
+this cloud laboratory is not a competition-qualified banking detector.
 
 CashProof is a working title and does not imply ForteBank endorsement.
 
-## Published static build, 18 October 2026
+## Cloud synthetic release, 18 October 2026
 
-The existing production alias now serves the Git build from a1fa9d2a44a3c5c5953302460a8d75d6da09953e, deployment82s7f2A3sLFQg8eXEugSp9UG4zaR (Ready,18s). All11 public files (736,036bytes) were fetched anonymously and matched the corrected Windows build byte-for-byte; security headers and absence of actual credential values were checked. Public login rendered without accessing private cases. Explicit LF attributes preserve identical static/license bytes on Windows and Linux. The earlier prepared Drop directory is retained as historical and is not the final public fingerprint.
+The main site is connected to `cashproof-synthetic-api.onrender.com` through an
+exact synthetic namespace rewrite. Use the separate laboratory key; Gemini
+credentials stay on Render. Recorded results and fresh Gemini responses are
+explicitly distinguished. The original real-video login is a separate workflow.
 
-The owner prioritizes an accurate single service. API/health are two technical paths of that one service, not competing models. The latest response did not approve routing Publish; both rewrites remain Draft while recognition quality is unresolved. The local portable API/tunnel are ready, but current public API readiness is false. No claim of universally correct diagnosis is made.
+The same eight synthetic development clips were compared across model/input
+variants. Gemini 3.8 Flash with a visible stationary reference passed **8/8 target
+event lists and timestamps** (0.5 s tolerance; TP5/TN3/FP0/FN0). Its first pass
+omitted one auxiliary reverse crossing, so the all-direction score was **7/8**.
+A bounded second model review checks returns between model-reported events;
+its targeted verification is reported separately. These eight geometric clips
+do not establish banking accuracy or generalization. See the detailed
+[model comparison](docs/backend/gemini-cloud-comparison.md) and
+[Render operation and limits](docs/backend/render-synthetic-api.md).
+
+Only explicitly verified $0 Free Tier configuration is allowed. Project and
+model-price receipts expire after 30 minutes; generation then fails closed.
+No paid fallback or automatic provider retries are enabled. Render Free can
+sleep and lose in-memory jobs; download results before a restart.

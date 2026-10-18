@@ -121,9 +121,27 @@ The v6 probe also missed the near-line start, then stopped on provider HTTP 503;
 there were no retries. A final `native-video-v7` comparison uses only the bundled
 MP4, explicit 4 fps video metadata, and model-reported before/event/after times.
 It validates direction and temporal consistency without changing model times.
-Only Gemini 2.5 Flash, 2.5 Flash Lite and 3.1 Flash Lite remain in the runtime
-allowlist. A proposed 3.8 experiment was rejected by automatic approval review
-and was not enabled; no 3.8 generation request was made in this work.
+The initial 3.8 configuration was rejected because a project Free Tier badge
+alone did not prove model-specific prices. Official Standard Free Tier input
+and output prices and AI Studio model quotas were then verified; a separate
+fresh key-bound $0 model-price gate was tested. Approval then succeeded.
+The full 3.8 / native-reference-v11 run passed 8/8 target event lists and times,
+with TP5/TN3/FP0/FN0. Its all-direction inventory passed 7/8: it omitted the
+reverse return in the repeated clip. See [comparison](gemini-cloud-comparison.md).
+
+The selected `native-reference-v12-review` uses the same first-pass input and
+prompt. If several target events are reported, one bounded second model call
+checks the intervening return on the original timeline. It is a distinct
+verification stage, not an automatic retry. All calls count toward the cap of
+eight per instance; `new_gemini_requests` is 1 or 2. Model-returned times are
+never replaced with geometry. Inconsistent or missing return evidence fails
+explicitly rather than inventing a crossing. The visible red reference overlay
+is disclosed and preserves every source PTS; both input hashes are exported.
+
+The main site uses only `/api/synthetic/*` on this Render service. Both old
+Vercel project-level Cloudflare routing rules were disabled and published.
+The primary UI supports authenticated jobs, polling, source-time seeking,
+raw model results and JSON export. The existing real-video API is disabled.
 
 Official model/pricing references checked on 18 October 2026:
 https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite and

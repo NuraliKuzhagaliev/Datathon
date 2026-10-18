@@ -80,6 +80,8 @@ def live_guard():
             checked = datetime.fromisoformat(pricing["checked_at_utc"])
             age = (datetime.now(timezone.utc)-checked).total_seconds()
             if (pricing.get("model") != MODEL or pricing.get("currency") != "USD"
+                    or type(pricing.get("input_usd_per_million")) not in (int, float)
+                    or type(pricing.get("output_usd_per_million")) not in (int, float)
                     or pricing.get("input_usd_per_million") != 0
                     or pricing.get("output_usd_per_million") != 0
                     or pricing.get("official_source") != "https://ai.google.dev/gemini-api/docs/pricing"
@@ -203,7 +205,7 @@ class Selection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scenario: str
     engine: Literal["recorded", "gemini"] = "recorded"
-    profile: Literal["frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high", "native-video-v9-high", "native-reference-v11"] | None = None
+    profile: Literal["frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high", "native-video-v9-high", "native-reference-v11", "native-reference-v12-review"] | None = None
 
 
 def analyze(selection):
@@ -214,10 +216,11 @@ def analyze(selection):
     if digest != row["video_sha256"]:
         raise SafeStop("BUNDLED_SYNTHETIC_HASH_MISMATCH")
     profile = (selection.profile or PROFILE) if selection.engine == "gemini" else "frame-sides-v3"
-    if profile not in ("frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high", "native-video-v9-high", "native-reference-v11"):
+    if profile not in ("frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high", "native-video-v9-high", "native-reference-v11", "native-reference-v12-review"):
         raise SafeStop("UNRECOGNIZED_SYNTHETIC_PROMPT_PROFILE")
     native = profile.startswith("native-")
-    prompt = REFERENCE_PROMPT if profile == "native-reference-v11" else PROMPT_V2 if native else WITNESS_PROMPT if profile == "temporal-witness-v5" else PROMPT_V4 if profile == "center-sides-v6" else PROMPT_V3
+    reference = profile.startswith("native-reference-")
+    prompt = REFERENCE_PROMPT if reference else PROMPT_V2 if native else WITNESS_PROMPT if profile == "temporal-witness-v5" else PROMPT_V4 if profile == "center-sides-v6" else PROMPT_V3
     if profile == "native-video-v9-high":
         prompt += "\nFor each reported crossing at time t, use before_time_sec=t-0.25 and after_time_sec=t+0.25. Both must lie inside the video. Check those actual nearby moments and their center sides. Keep all crossings sorted and event_times_sec exactly equal to left_to_right crossing times. Return numeric seconds, not strings. A completed pass has one center crossing even while the square overlaps red for several frames.\n"
     parts, sampled = visual_input(path) if profile == "temporal-witness-v5" else ordered_frames(path)
@@ -228,9 +231,10 @@ def analyze(selection):
     model_version = "recorded-gemini-2.5-flash"
     input_transform = {"method": "unmodified_source"}
     model_video_sha256 = digest
+    calls_started = 0
     if selection.engine == "gemini":
         if native:
-            model_video, input_transform = visible_reference_video(path) if profile == "native-reference-v11" else (path.read_bytes(), input_transform)
+            model_video, input_transform = visible_reference_video(path) if reference else (path.read_bytes(), input_transform)
             model_video_sha256 = hashlib.sha256(model_video).hexdigest()
             parts = [{"inlineData": {"mimeType": "video/mp4", "data": base64.b64encode(model_video).decode()}, "videoMetadata": {"fps": 4}}]
         delay = max(0, 13 - (time.monotonic() - LAST_CALL))
@@ -238,26 +242,68 @@ def analyze(selection):
             time.sleep(delay)
         key = live_guard()  # Recheck receipt after any wait and before every call.
         LIVE_CALLS += 1
+        calls_started += 1
         LAST_CALL = time.monotonic()
         try:
             with httpx.Client(timeout=120, follow_redirects=False, trust_env=False) as client:
-                body = api_json(client, "POST", f"/models/{MODEL}:generateContent", key, {
+                payload = {
                     "contents": [{"role": "user", "parts": [*parts, {"text": prompt}]}],
                     "generationConfig": {"temperature": 0, "maxOutputTokens": 8192 if native or profile == "center-sides-v6" else 4096,
                         "responseMimeType": "application/json",
-                        "responseSchema": REFERENCE_SCHEMA if profile == "native-reference-v11" else SCHEMA_V2 if native else WITNESS_SCHEMA if profile == "temporal-witness-v5" else {"type": "OBJECT", "properties": {"frame_sides": {
+                        "responseSchema": REFERENCE_SCHEMA if reference else SCHEMA_V2 if native else WITNESS_SCHEMA if profile == "temporal-witness-v5" else {"type": "OBJECT", "properties": {"frame_sides": {
                             "type": "ARRAY", "minItems": len(frames), "maxItems": len(frames),
                             "items": {"type": "STRING", "enum": ["left", "on", "right"]}}},
                             "required": ["frame_sides"]},
-                        **({"mediaResolution": "MEDIA_RESOLUTION_HIGH"} if profile in ("native-video-v8-high", "native-video-v9-high", "native-reference-v11") else {}),
+                        **({"mediaResolution": "MEDIA_RESOLUTION_HIGH"} if reference or profile in ("native-video-v8-high", "native-video-v9-high") else {}),
                         **({"thinkingConfig": {"thinkingBudget": 1024}}
                            if MODEL.startswith("gemini-2.5-") else
                            {"thinkingConfig": {"thinkingLevel": "HIGH"}}
-                           if profile == "center-sides-v6" else {})}})
+                           if profile == "center-sides-v6" else {})}}
+                body = api_json(client, "POST", f"/models/{MODEL}:generateContent", key, payload)
             try:
-                raw = parse_reference_output(body, row["duration_sec"]) if profile == "native-reference-v11" else parse_witnesses(body, frames) if profile == "temporal-witness-v5" else validate_result(body, row["duration_sec"], witnesses=native, frames=None if native else frames)
+                raw = parse_reference_output(body, row["duration_sec"]) if reference else parse_witnesses(body, frames) if profile == "temporal-witness-v5" else validate_result(body, row["duration_sec"], witnesses=native, frames=None if native else frames)
             except SafeStop as exc:
                 raise ModelResponseError(str(exc), body) from None
+            if profile == "native-reference-v12-review":
+                forward = [c for c in raw["crossings"] if c["direction"] == "left_to_right"]
+                if len(forward) > 1:
+                    # Model-generated candidate intervals only; never reference labels
+                    # or pixel-derived times. Review is a distinct bounded model stage.
+                    intervals = [(a["time_sec"], b["time_sec"]) for a, b in zip(forward, forward[1:])]
+                    review_prompt = ("Review the original synthetic video again. A first model pass reported left-to-right center crossings at "
+                        + json.dumps([c["time_sec"] for c in forward])
+                        + ". Inspect the intervals BETWEEN those model-reported crossings. Report ONLY actually visible right-to-left CENTER crossings in those intervals. "
+                        "A change of travel direction alone is not a line crossing. Do not invent a return from logic alone: locate it in the video. "
+                        "Use the blue CENTER, not either edge. Return direction_summary and crossings. For an event at t use witnesses at t-0.25 and t+0.25, "
+                        "before_side=right, after_side=left, direction=right_to_left. Return original source seconds; no legal claims. Empty crossings if none is visible.")
+                    delay = max(0, 13 - (time.monotonic() - LAST_CALL))
+                    if delay:
+                        time.sleep(delay)
+                    key = live_guard()
+                    LIVE_CALLS += 1
+                    calls_started += 1
+                    LAST_CALL = time.monotonic()
+                    review_payload = {**payload, "contents": [{"role": "user", "parts": [*parts, {"text": review_prompt}]}]}
+                    with httpx.Client(timeout=120, follow_redirects=False, trust_env=False) as client:
+                        review_body = api_json(client, "POST", f"/models/{MODEL}:generateContent", key, review_payload)
+                    try:
+                        review = parse_reference_output(review_body, row["duration_sec"])
+                    except SafeStop as exc:
+                        raise ModelResponseError(str(exc), review_body) from None
+                    found = review["crossings"]
+                    if (any(c["direction"] != "right_to_left" or not any(a < c["time_sec"] < b for a,b in intervals) for c in found)
+                            or any(sum(a < c["time_sec"] < b for c in found) != 1 for a,b in intervals)):
+                        raise SafeStop("MODEL_RETURN_PASS_NOT_VERIFIED")
+                    original_crossings = raw["crossings"]
+                    merged = list(original_crossings)
+                    for crossing in found:
+                        existing = [c for c in merged if c["direction"] == "right_to_left" and abs(c["time_sec"]-crossing["time_sec"]) <= .5]
+                        if not existing:
+                            merged.append(crossing)
+                    merged.sort(key=lambda c: c["time_sec"])
+                    raw = {**raw, "crossings": merged, "temporal_review": {"first_pass_crossings": original_crossings,
+                        "review_wire_output": review["wire_output"], "model_candidate_intervals": intervals,
+                        "target_times_unchanged": True}}
             model_version = body.get("modelVersion", MODEL)
         except Exception:
             HALTED = True  # Never automatically retry/resume after a provider failure.
@@ -282,7 +328,7 @@ def analyze(selection):
         raise SafeStop("SOURCE_FRAME_NOT_FOUND")
     result = events_from_sides({"frame_sides": sides}, frames)
     return {"synthetic_only": True, "engine": selection.engine,
-            "new_gemini_requests": int(selection.engine == "gemini"),
+            "new_gemini_requests": calls_started,
             "model_version": model_version, "source_sha256": digest,
             "prompt_version": profile,
             "model_input_transform": input_transform,

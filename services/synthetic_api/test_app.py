@@ -256,6 +256,7 @@ def test_new_model_requires_its_own_free_price_proof_not_only_project_tier(api,m
     enable(app,monkeypatch)
     monkeypatch.setattr(app,'MODEL','gemini-3.8-flash')
     assert client.get('/health/ready').json()['gemini_live_ready'] is False
+
     proof={'checked_at_utc':datetime.now(timezone.utc).isoformat(),'model':'gemini-3.8-flash',
            'currency':'USD','input_usd_per_million':0,'output_usd_per_million':0,
            'official_source':'https://ai.google.dev/gemini-api/docs/pricing',
@@ -266,3 +267,40 @@ def test_new_model_requires_its_own_free_price_proof_not_only_project_tier(api,m
     monkeypatch.setenv('GEMINI_MODEL_PRICING_RECEIPT',json.dumps(proof))
     assert client.get('/health/ready').json()['gemini_live_ready'] is False
     assert app.LIVE_CALLS==0
+    proof['input_usd_per_million']=False
+    monkeypatch.setenv('GEMINI_MODEL_PRICING_RECEIPT',json.dumps(proof))
+    assert client.get('/health/ready').json()['gemini_live_ready'] is False
+
+
+@pytest.mark.parametrize('observed_return',[True,False])
+def test_temporal_review_uses_second_model_evidence_and_keeps_target_times(api,monkeypatch,observed_return):
+    app,client=api
+    enable(app,monkeypatch)
+    calls=[]
+    def crossing(t,direction):
+        before,after=('left','right') if direction=='left_to_right' else ('right','left')
+        return {'before_time_sec':t-.25,'before_side':before,'time_sec':t,
+                'after_time_sec':t+.25,'after_side':after,'direction':direction}
+    def provider(client,method,route,key,payload):
+        calls.append(payload)
+        app.LAST_CALL=0  # Mock provider consumes no actual time/quota.
+        if len(calls)==1:
+            rows=[crossing(2,'left_to_right'),crossing(8,'left_to_right')]
+        else:
+            assert 'BETWEEN' in payload['contents'][0]['parts'][-1]['text']
+            rows=[crossing(5,'right_to_left')] if observed_return else []
+        return {'candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps({'direction_summary':'Synthetic model observation','crossings':rows})}]}}]}
+    monkeypatch.setattr(app,'api_json',provider)
+    response=client.post('/api/synthetic/jobs',json={'scenario':'repeated','engine':'gemini','profile':'native-reference-v12-review'},headers=AUTH)
+    row=wait(client,response.json()['job_id'])
+    assert len(calls)==2
+    if observed_return:
+        assert row['status']=='done',row
+        result=row['result']
+        assert result['new_gemini_requests']==2
+        assert result['raw_gemini_result']['event_times_sec']==[2,8]
+        assert [c['time_sec'] for c in result['raw_gemini_result']['crossings']]==[2,5,8]
+        assert result['raw_gemini_result']['temporal_review']['target_times_unchanged'] is True
+    else:
+        assert row['status']=='failed' and 'result' not in row
+        assert row['error']['code']=='MODEL_RETURN_PASS_NOT_VERIFIED'

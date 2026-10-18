@@ -82,7 +82,7 @@ test('cloud laboratory uses same-origin authenticated API and preserves the mode
     await route.fulfill({status:202,json:{job_id:'abcd-1234'}});
   });
   const sourceHash = JSON.parse(readFileSync('apps/web/public/synthetic-demo/recordings.json','utf8')).cases[0].video_sha256;
-  await page.route('**/api/synthetic/jobs/abcd-1234', route => route.fulfill({json:{job_id:'abcd-1234',status:'done',scenario:'near_line_start',engine:'gemini',elapsed_sec:4.2,result:{synthetic_only:true,new_gemini_requests:1,model_version:'gemini-3.1-flash-lite',raw_gemini_result:{event_times_sec:[1.5]},geometry_result:{event_times_sec:[2]},source_sha256:sourceHash}}}));
+  await page.route('**/api/synthetic/jobs/abcd-1234', route => route.fulfill({json:{job_id:'abcd-1234',status:'done',scenario:'near_line_start',engine:'gemini',elapsed_sec:4.2,result:{synthetic_only:true,new_gemini_requests:2,prompt_version:'native-reference-v12-review',model_version:'gemini-3.8-flash',raw_gemini_result:{event_times_sec:[1.5]},geometry_result:{event_times_sec:[2]},source_sha256:sourceHash,model_input_transform:{method:'static_red_reference_overlay'}}}}));
   await page.goto('/#synthetic-lab');
   await page.getByLabel('Ключ облачной лаборатории',{exact:true}).fill('wrong-key');
   await page.getByRole('button',{name:'Подключить Render',exact:true}).click();
@@ -92,12 +92,13 @@ test('cloud laboratory uses same-origin authenticated API and preserves the mode
   await expect(page.getByText('Render подключён',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Новый анализ Gemini',exact:true}).click();
   await expect(page.getByTestId('cloud-model-times')).toHaveText('1.5 с');
+  await expect(page.getByText('В синтетическом входе усилена видимость', {exact:false})).toBeVisible();
   const pending = page.waitForEvent('download');
   await page.getByRole('button',{name:'Скачать облачный JSON',exact:true}).click();
   const report = JSON.parse(readFileSync((await (await pending).path())!, 'utf8'));
   expect(report.result.raw_gemini_result.event_times_sec).toEqual([1.5]);
   expect(report.result.geometry_result.event_times_sec).toEqual([2]);
-  expect(report.result.new_gemini_requests).toBe(1);
+  expect(report.result.new_gemini_requests).toBe(2);
   expect(await page.evaluate(() => JSON.stringify({...localStorage}))).not.toContain('test-cloud-key');
   expect(await page.evaluate(() => JSON.stringify({...sessionStorage}))).not.toContain('test-cloud-key');
   expect(page.url()).not.toContain('test-cloud-key');
