@@ -4,7 +4,7 @@ FORTEBANK DATATHON HANDOFF
 
 2. Put the complete forte_handoff folder into one project repository. The initial baseline owner copies forte_handoff/contracts to packages/contracts once. Commit that baseline before the two developers branch. This avoids two competing contract files.
 
-3. Person A opens a coding chat on the RTX 4060 8 GB computer and pastes CODEX_A_MASTER_PROMPT.txt. Person B opens a coding chat on the other computer and pastes CODEX_B_MASTER_PROMPT.txt. Both chats must have the handoff and shared baseline available. They can use separate clones/branches of the same repository.
+3. Person A opens a coding chat on the RTX 4060 8 GB computer and pastes PARTICIPANT_A_MASTER_PROMPT.txt. Person B opens a coding chat on the other computer and pastes PARTICIPANT_B_MASTER_PROMPT.txt. Both chats must have the handoff and shared baseline available. They can use separate clones/branches of the same repository.
 
 4. Both read SHARED_CONTRACT.md. A owns Python/inference/rules/API/deployment. B owns web/desktop/JavaScript. A integrates the releases. Merge working slices at hours 2, 5, 9, 14 and 18. Contract/lockfile ownership is explicit.
 
@@ -17,8 +17,8 @@ FORTEBANK DATATHON HANDOFF
 CONTENTS
 
 01_RESEARCH_AND_PLAN.html      Research report and execution plan
-CODEX_A_MASTER_PROMPT.txt       Complete backend/local-AI prompt
-CODEX_B_MASTER_PROMPT.txt       Complete web/desktop prompt
+PARTICIPANT_A_MASTER_PROMPT.txt       Complete backend/local-AI prompt
+PARTICIPANT_B_MASTER_PROMPT.txt       Complete web/desktop prompt
 SHARED_CONTRACT.md              Architecture, ownership and integration behavior
 contracts/openapi.json          Frozen HTTP contract 1.0.0
 contracts/fixtures/             Nine synthetic integration fixtures
