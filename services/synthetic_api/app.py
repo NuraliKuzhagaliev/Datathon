@@ -32,11 +32,15 @@ from gemini_synthetic_smoke import (  # noqa: E402
     validate_result, verify_free_tier,
 )
 from synthetic_geometry import measure_side  # noqa: E402
+from services.synthetic_api.observations import (  # noqa: E402
+    PROMPT as WITNESS_PROMPT, SCHEMA as WITNESS_SCHEMA, parse_witnesses, visual_input,
+)
 
 ASSETS = REPO / "apps/web/public/synthetic-demo"
 CATALOG = {c["id"]: c for c in json.loads(
     (ASSETS / "recordings.json").read_text(encoding="utf-8"))["cases"]}
 MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+PROFILE = os.getenv("GEMINI_PROMPT_PROFILE", "frame-sides-v3")
 JOBS: dict[str, dict] = {}
 TASKS: set = set()
 BUSY = False
@@ -144,6 +148,7 @@ def ready():
     return {"synthetic_only": True, "recorded_replay_ready": True,
             "gemini_live_ready": reason is None, "gemini_block_reason": reason,
             "model": MODEL, "live_requests_started_this_instance": LIVE_CALLS,
+            "prompt_profile": PROFILE,
             "max_live_requests_this_instance": 8, "results_ephemeral": True,
             "jury_analysis_ready": False, "boot_id": BOOT_ID}
 
@@ -171,6 +176,7 @@ class Selection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scenario: str
     engine: Literal["recorded", "gemini"] = "recorded"
+    profile: Literal["frame-sides-v3", "temporal-witness-v5"] | None = None
 
 
 def analyze(selection):
@@ -180,10 +186,13 @@ def analyze(selection):
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     if digest != row["video_sha256"]:
         raise SafeStop("BUNDLED_SYNTHETIC_HASH_MISMATCH")
-    parts, sampled = ordered_frames(path)
+    profile = (selection.profile or PROFILE) if selection.engine == "gemini" else "frame-sides-v3"
+    if profile not in ("frame-sides-v3", "temporal-witness-v5"):
+        raise SafeStop("UNRECOGNIZED_SYNTHETIC_PROMPT_PROFILE")
+    parts, sampled = visual_input(path) if profile == "temporal-witness-v5" else ordered_frames(path)
     frames = [{"frame_id": f["frame_id"], "timestamp_sec": f["timestamp_sec"]}
               for f in sampled]  # Scoring labels are never detector inputs.
-    if frames != row["frames"]:
+    if profile == "frame-sides-v3" and frames != row["frames"]:
         raise SafeStop("RECORDED_SOURCE_TIMELINE_MISMATCH")
     model_version = "recorded-gemini-2.5-flash"
     if selection.engine == "gemini":
@@ -196,16 +205,16 @@ def analyze(selection):
         try:
             with httpx.Client(timeout=120, follow_redirects=False, trust_env=False) as client:
                 body = api_json(client, "POST", f"/models/{MODEL}:generateContent", key, {
-                    "contents": [{"role": "user", "parts": [*parts, {"text": PROMPT_V3}]}],
+                    "contents": [{"role": "user", "parts": [*parts, {"text": WITNESS_PROMPT if profile == "temporal-witness-v5" else PROMPT_V3}]}],
                     "generationConfig": {"temperature": 0, "maxOutputTokens": 4096,
                         "responseMimeType": "application/json",
-                        "responseSchema": {"type": "OBJECT", "properties": {"frame_sides": {
+                        "responseSchema": WITNESS_SCHEMA if profile == "temporal-witness-v5" else {"type": "OBJECT", "properties": {"frame_sides": {
                             "type": "ARRAY", "minItems": len(frames), "maxItems": len(frames),
                             "items": {"type": "STRING", "enum": ["left", "on", "right"]}}},
                             "required": ["frame_sides"]},
                         **({"thinkingConfig": {"thinkingBudget": 1024}}
                            if MODEL.startswith("gemini-2.5-") else {})}})
-            raw = validate_result(body, row["duration_sec"], frames=frames)
+            raw = parse_witnesses(body, frames) if profile == "temporal-witness-v5" else validate_result(body, row["duration_sec"], frames=frames)
             model_version = body.get("modelVersion", MODEL)
         except Exception:
             HALTED = True  # Never automatically retry/resume after a provider failure.
@@ -225,13 +234,14 @@ def analyze(selection):
             index = needed.pop(pts)
             measured = measure_side(frame.to_ndarray(format="rgb24"))
             sides[index] = measured["side"]
-            measurements.append({**frames[index], "model_side": raw["frame_sides"][index], **measured})
+            measurements.append({**frames[index], "model_side": raw.get("frame_sides", [None] * len(frames))[index], **measured})
     if needed:
         raise SafeStop("SOURCE_FRAME_NOT_FOUND")
     result = events_from_sides({"frame_sides": sides}, frames)
     return {"synthetic_only": True, "engine": selection.engine,
             "new_gemini_requests": int(selection.engine == "gemini"),
             "model_version": model_version, "source_sha256": digest,
+            "prompt_version": profile,
             "geometry_method": "independent_pixel_measurement_of_every_sampled_source_frame",
             "raw_gemini_result": raw, "geometry_result": result,
             "geometry_observations": measurements, "frames": frames,

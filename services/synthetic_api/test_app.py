@@ -143,3 +143,47 @@ def test_busy_and_public_console(api):
     response = client.get("/health/live")
     assert "frame-ancestors 'none'" in response.headers["Content-Security-Policy"]
     assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_zoom_input_and_model_selected_witnesses_are_not_pixel_answers(api, monkeypatch):
+    app, client = api
+    enable(app, monkeypatch)
+    def provider(client, method, route, key, payload):
+        assert 'crossings' in payload['generationConfig']['responseSchema']['properties']
+        assert 'synthetic_expected_side' not in json.dumps(payload)
+        assert 'reference_event_times_sec' not in json.dumps(payload)
+        # Deliberately wrong model time must survive the independent geometry.
+        rows = [{'before_frame_id':'f0003','before_side':'left','event_frame_id':'f0004',
+                 'after_frame_id':'f0005','after_side':'right','direction':'left_to_right',
+                 'observation':'Synthetic mocked observation'}]
+        return {'candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps({'crossings':rows})}]}}]}
+    monkeypatch.setattr(app,'api_json',provider)
+    response=client.post('/api/synthetic/jobs',json={'scenario':'forward','engine':'gemini','profile':'temporal-witness-v5'},headers=AUTH)
+    row=wait(client,response.json()['job_id'])
+    assert row['status']=='done', row
+    assert row['result']['raw_gemini_result']['event_times_sec']==[2.0]
+    assert row['result']['geometry_result']['event_times_sec']==[3.0]
+    assert row['result']['prompt_version']=='temporal-witness-v5'
+    frames=row['result']['frames']
+    assert len(frames)==13 and frames[1]['timestamp_sec']==0.5 and frames[-1]['timestamp_sec']==5.9
+
+
+@pytest.mark.parametrize('change', ['unknown_id','direction','wide_gap','duplicate','truncated'])
+def test_witnesses_reject_unsupported_model_claims(api,change):
+    from services.synthetic_api.observations import parse_witnesses
+    app,_=api
+    frames=[{'frame_id':f'f{i:04d}','timestamp_sec':i*.5} for i in range(8)]
+    event={'before_frame_id':'f0001','before_side':'left','event_frame_id':'f0002',
+           'after_frame_id':'f0003','after_side':'right','direction':'left_to_right','observation':'A crossing'}
+    rows=[event]
+    if change=='unknown_id':
+        event['event_frame_id']='not-a-source-frame'
+    if change=='direction':
+        event['direction']='right_to_left'
+    if change=='wide_gap':
+        event['after_frame_id']='f0007'
+    if change=='duplicate':
+        rows.append(dict(event))
+    body={'candidates':[{'finishReason':'MAX_TOKENS' if change=='truncated' else 'STOP','content':{'parts':[{'text':json.dumps({'crossings':rows})}]}}]}
+    with pytest.raises(app.SafeStop):
+        parse_witnesses(body,frames)
