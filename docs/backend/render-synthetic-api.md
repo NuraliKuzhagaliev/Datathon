@@ -112,10 +112,18 @@ geometric event result or reference time is given to the model or substituted
 into the raw result. Cropped model-input panels are not original evidence.
 
 The v5 live probe was rejected: only 1/3 completed model event lists passed,
-including a wrong direction, followed by one invalid-witness technical failure.
+including a wrong direction, followed by one provider HTTP 503 technical failure.
 It is not the default. The v6 candidate keeps unmodified source images, tightens
 the center/overlap distinction and enables HIGH thinking on Gemini 3.1; model
 event timing still comes only from model observations and source PTS.
+
+The v6 probe also missed the near-line start, then stopped on provider HTTP 503;
+there were no retries. A final `native-video-v7` comparison uses only the bundled
+MP4, explicit 4 fps video metadata, and model-reported before/event/after times.
+It validates direction and temporal consistency without changing model times.
+Only Gemini 2.5 Flash, 2.5 Flash Lite and 3.1 Flash Lite remain in the runtime
+allowlist. A proposed 3.8 experiment was rejected by automatic approval review
+and was not enabled; no 3.8 generation request was made in this work.
 
 Official model/pricing references checked on 18 October 2026:
 https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite and
