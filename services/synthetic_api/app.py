@@ -35,6 +35,7 @@ from gemini_synthetic_smoke import (  # noqa: E402
 from synthetic_geometry import measure_side  # noqa: E402
 from services.synthetic_api.observations import (  # noqa: E402
     PROMPT as WITNESS_PROMPT, SCHEMA as WITNESS_SCHEMA, parse_witnesses, visual_input,
+    REFERENCE_PROMPT, REFERENCE_SCHEMA, parse_reference_output, visible_reference_video,
 )
 
 ASSETS = REPO / "apps/web/public/synthetic-demo"
@@ -185,7 +186,7 @@ class Selection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scenario: str
     engine: Literal["recorded", "gemini"] = "recorded"
-    profile: Literal["frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high", "native-video-v9-high"] | None = None
+    profile: Literal["frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high", "native-video-v9-high", "native-reference-v11"] | None = None
 
 
 def analyze(selection):
@@ -196,10 +197,10 @@ def analyze(selection):
     if digest != row["video_sha256"]:
         raise SafeStop("BUNDLED_SYNTHETIC_HASH_MISMATCH")
     profile = (selection.profile or PROFILE) if selection.engine == "gemini" else "frame-sides-v3"
-    if profile not in ("frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high", "native-video-v9-high"):
+    if profile not in ("frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high", "native-video-v9-high", "native-reference-v11"):
         raise SafeStop("UNRECOGNIZED_SYNTHETIC_PROMPT_PROFILE")
-    native = profile.startswith("native-video-")
-    prompt = PROMPT_V2 if native else WITNESS_PROMPT if profile == "temporal-witness-v5" else PROMPT_V4 if profile == "center-sides-v6" else PROMPT_V3
+    native = profile.startswith("native-")
+    prompt = REFERENCE_PROMPT if profile == "native-reference-v11" else PROMPT_V2 if native else WITNESS_PROMPT if profile == "temporal-witness-v5" else PROMPT_V4 if profile == "center-sides-v6" else PROMPT_V3
     if profile == "native-video-v9-high":
         prompt += "\nFor each reported crossing at time t, use before_time_sec=t-0.25 and after_time_sec=t+0.25. Both must lie inside the video. Check those actual nearby moments and their center sides. Keep all crossings sorted and event_times_sec exactly equal to left_to_right crossing times. Return numeric seconds, not strings. A completed pass has one center crossing even while the square overlaps red for several frames.\n"
     parts, sampled = visual_input(path) if profile == "temporal-witness-v5" else ordered_frames(path)
@@ -208,9 +209,13 @@ def analyze(selection):
     if profile != "temporal-witness-v5" and frames != row["frames"]:
         raise SafeStop("RECORDED_SOURCE_TIMELINE_MISMATCH")
     model_version = "recorded-gemini-2.5-flash"
+    input_transform = {"method": "unmodified_source"}
+    model_video_sha256 = digest
     if selection.engine == "gemini":
         if native:
-            parts = [{"inlineData": {"mimeType": "video/mp4", "data": base64.b64encode(path.read_bytes()).decode()}, "videoMetadata": {"fps": 4}}]
+            model_video, input_transform = visible_reference_video(path) if profile == "native-reference-v11" else (path.read_bytes(), input_transform)
+            model_video_sha256 = hashlib.sha256(model_video).hexdigest()
+            parts = [{"inlineData": {"mimeType": "video/mp4", "data": base64.b64encode(model_video).decode()}, "videoMetadata": {"fps": 4}}]
         delay = max(0, 13 - (time.monotonic() - LAST_CALL))
         if delay:
             time.sleep(delay)
@@ -223,17 +228,17 @@ def analyze(selection):
                     "contents": [{"role": "user", "parts": [*parts, {"text": prompt}]}],
                     "generationConfig": {"temperature": 0, "maxOutputTokens": 8192 if native or profile == "center-sides-v6" else 4096,
                         "responseMimeType": "application/json",
-                        "responseSchema": SCHEMA_V2 if native else WITNESS_SCHEMA if profile == "temporal-witness-v5" else {"type": "OBJECT", "properties": {"frame_sides": {
+                        "responseSchema": REFERENCE_SCHEMA if profile == "native-reference-v11" else SCHEMA_V2 if native else WITNESS_SCHEMA if profile == "temporal-witness-v5" else {"type": "OBJECT", "properties": {"frame_sides": {
                             "type": "ARRAY", "minItems": len(frames), "maxItems": len(frames),
                             "items": {"type": "STRING", "enum": ["left", "on", "right"]}}},
                             "required": ["frame_sides"]},
-                        **({"mediaResolution": "MEDIA_RESOLUTION_HIGH"} if profile in ("native-video-v8-high", "native-video-v9-high") else {}),
+                        **({"mediaResolution": "MEDIA_RESOLUTION_HIGH"} if profile in ("native-video-v8-high", "native-video-v9-high", "native-reference-v11") else {}),
                         **({"thinkingConfig": {"thinkingBudget": 1024}}
                            if MODEL.startswith("gemini-2.5-") else
                            {"thinkingConfig": {"thinkingLevel": "HIGH"}}
                            if profile == "center-sides-v6" else {})}})
             try:
-                raw = parse_witnesses(body, frames) if profile == "temporal-witness-v5" else validate_result(body, row["duration_sec"], witnesses=native, frames=None if native else frames)
+                raw = parse_reference_output(body, row["duration_sec"]) if profile == "native-reference-v11" else parse_witnesses(body, frames) if profile == "temporal-witness-v5" else validate_result(body, row["duration_sec"], witnesses=native, frames=None if native else frames)
             except SafeStop as exc:
                 raise ModelResponseError(str(exc), body) from None
             model_version = body.get("modelVersion", MODEL)
@@ -263,6 +268,8 @@ def analyze(selection):
             "new_gemini_requests": int(selection.engine == "gemini"),
             "model_version": model_version, "source_sha256": digest,
             "prompt_version": profile,
+            "model_input_transform": input_transform,
+            "model_video_sha256": model_video_sha256,
             "geometry_method": "independent_pixel_measurement_of_every_sampled_source_frame",
             "raw_gemini_result": raw, "geometry_result": result,
             "geometry_observations": measurements, "frames": frames,

@@ -4,9 +4,79 @@ import io
 import json
 
 import av
+import numpy as np
 from PIL import Image, ImageDraw
 
-from gemini_synthetic_smoke import SafeStop
+from gemini_synthetic_smoke import SafeStop, SCHEMA_V2, validate_crossings
+
+REFERENCE_PROMPT = """Inspect this synthetic video in chronological order. A fixed red reference
+line has been made visible through the blue square; source timing is unchanged.
+Report every crossing of the blue square's CENTER through that red line, in BOTH
+directions. The center is on red ONLY when blue extends equally far on both sides.
+If red is inside the square but off its midpoint, the center is still on one side.
+Neither the front edge first touching red NOR the rear edge finally clearing red
+is the center crossing. Those bound an overlap interval; choose its middle where
+the CENTER aligns with red, not the first instant the whole square is to the right.
+An initial overlap does not mean the center starts on the line. Examine its offset.
+Waiting, stopping, touching and returning to the same side are not crossings.
+For each actual crossing at source time t, give a before observation at t-0.25
+and an after observation at t+0.25, strictly within the video. Determine direction
+from those center sides: left then right is left_to_right; right then left is
+right_to_left. Each continuous pass is ONE crossing. Repeated passes are separate.
+Return JSON with direction_summary and crossings only. Every crossing has
+before_time_sec, before_side, time_sec, after_time_sec, after_side, direction.
+Use numeric seconds from the start of THIS video. Do not round to whole seconds.
+No crossings means an empty crossings array. No legal or real-world conclusions.
+"""
+REFERENCE_SCHEMA = {"type": "OBJECT", "properties": {
+    k: v for k, v in SCHEMA_V2["properties"].items() if k != "event_times_sec"},
+    "required": ["direction_summary", "crossings"]}
+
+
+def visible_reference_video(path):
+    """Registration overlay only: locate static red, never blue or event times."""
+    data = io.BytesIO()
+    marker = None
+    with av.open(str(path)) as source, av.open(data, mode="w", format="mp4") as target:
+        source_stream = source.streams.video[0]
+        stream = target.add_stream("libx264", rate=source_stream.average_rate)
+        stream.width, stream.height, stream.pix_fmt = source_stream.width, source_stream.height, "yuv420p"
+        stream.options = {"crf": "18", "preset": "veryfast"}
+        for frame in source.decode(video=0):
+            if marker is None:
+                rgb = frame.to_ndarray(format="rgb24")
+                red = (rgb[:, :, 0] > 150) & (rgb[:, :, 1] < 90) & (rgb[:, :, 2] < 90)
+                columns = np.flatnonzero(red.sum(axis=0) >= rgb.shape[0] * 0.2)
+                if not len(columns) or columns[-1]-columns[0] > 10:
+                    raise SafeStop("REFERENCE_CALIBRATION_UNCLEAR")
+                ys = np.flatnonzero(red[:, columns].any(axis=1))
+                marker = (int(np.median(columns)), int(ys.min()), int(ys.max()))
+            with frame.to_image() as image:
+                x, y0, y1 = marker
+                ImageDraw.Draw(image).line((x, y0, x, y1), fill="red", width=3)
+                output = av.VideoFrame.from_image(image)
+                output.pts, output.time_base = frame.pts, frame.time_base
+                for packet in stream.encode(output):
+                    target.mux(packet)
+        for packet in stream.encode():
+            target.mux(packet)
+    return data.getvalue(), {"method": "static_red_reference_overlay", "reference_x": marker[0]}
+
+
+def parse_reference_output(body, duration):
+    try:
+        candidate = body["candidates"][0]
+        if candidate.get("finishReason") != "STOP":
+            raise ValueError()
+        wire = json.loads("".join(p.get("text", "") for p in candidate["content"]["parts"] if not p.get("thought")))
+        if not isinstance(wire["direction_summary"], str):
+            raise ValueError()
+        result = {"crossings": wire["crossings"], "direction_summary": wire["direction_summary"],
+                  "event_times_sec": [c["time_sec"] for c in wire["crossings"] if c["direction"] == "left_to_right"]}
+        validate_crossings(result, duration)
+        return {**result, "wire_output": wire, "event_times_source": "model_reported_crossings_only"}
+    except (ValueError, TypeError, KeyError, IndexError):
+        raise SafeStop("INVALID_MODEL_CROSSINGS") from None
 
 PROMPT = """Inspect these chronological frames of one synthetic animation.
 Each image has CONTEXT on the left and a FIXED ZOOM of the SAME frame on the

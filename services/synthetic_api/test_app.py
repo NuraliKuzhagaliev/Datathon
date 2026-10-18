@@ -189,14 +189,14 @@ def test_witnesses_reject_unsupported_model_claims(api,change):
         parse_witnesses(body,frames)
 
 
-@pytest.mark.parametrize('profile',['native-video-v7','native-video-v8-high'])
+@pytest.mark.parametrize('profile',['native-video-v7','native-video-v8-high','native-video-v9-high'])
 def test_native_video_preserves_model_timestamps_without_geometric_correction(api,monkeypatch,profile):
     app,client=api
     enable(app,monkeypatch)
     def provider(client,method,route,key,payload):
         part=payload['contents'][0]['parts'][0]
         assert part['inlineData']['mimeType']=='video/mp4' and part['videoMetadata']['fps']==4
-        if profile=='native-video-v8-high':
+        if profile in ('native-video-v8-high','native-video-v9-high'):
             assert payload['generationConfig']['mediaResolution']=='MEDIA_RESOLUTION_HIGH'
         result={'event_times_sec':[2.9],'direction_summary':'Model-selected time',
                 'crossings':[{'before_time_sec':2.5,'before_side':'left','time_sec':2.9,
@@ -208,3 +208,44 @@ def test_native_video_preserves_model_timestamps_without_geometric_correction(ap
     assert row['status']=='done',row
     assert row['result']['raw_gemini_result']['event_times_sec']==[2.9]
     assert row['result']['geometry_result']['event_times_sec']==[3.0]
+
+
+def test_invalid_model_output_is_failed_with_bounded_synthetic_diagnostic(api,monkeypatch):
+    app,client=api
+    enable(app,monkeypatch)
+    text=json.dumps({'frame_sides':[]})
+    monkeypatch.setattr(app,'api_json',lambda *args,**kwargs: {'candidates':[{'finishReason':'STOP','content':{'parts':[{'text':text}]}}]})
+    response=client.post('/api/synthetic/jobs',json={'scenario':'forward','engine':'gemini'},headers=AUTH)
+    row=wait(client,response.json()['job_id'])
+    assert row['status']=='failed' and 'result' not in row
+    assert row['model_diagnostic']=={'synthetic_only':True,'raw_model_text':text}
+    assert 'fake-provider-key' not in json.dumps(row)
+    assert app.HALTED
+
+
+def test_reference_overlay_preserves_every_source_timestamp(api):
+    import av
+    import io
+    from services.synthetic_api.observations import visible_reference_video
+    app,_=api
+    path=app.ASSETS/'near_line_start.mp4'
+    video,meta=visible_reference_video(path)
+    with av.open(str(path)) as source:
+        original=[float(f.pts*f.time_base) for f in source.decode(video=0)]
+    with av.open(io.BytesIO(video)) as processed:
+        times=[float(f.pts*f.time_base) for f in processed.decode(video=0)]
+    assert times==original and len(times)==60
+    assert meta['method']=='static_red_reference_overlay'
+    assert abs(meta['reference_x']-320)<=1
+
+
+def test_crossing_projection_keeps_wire_output_and_never_changes_model_times(api):
+    from services.synthetic_api.observations import parse_reference_output
+    wire={'direction_summary':'A synthetic crossing','event_times_sec':[],
+          'crossings':[{'before_time_sec':2.65,'before_side':'left','time_sec':2.9,
+                        'after_time_sec':3.15,'after_side':'right','direction':'left_to_right'}]}
+    body={'candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps(wire)}]}}]}
+    parsed=parse_reference_output(body,6)
+    assert parsed['event_times_sec']==[2.9]
+    assert parsed['wire_output']==wire and parsed['wire_output']['event_times_sec']==[]
+    assert parsed['event_times_source']=='model_reported_crossings_only'
