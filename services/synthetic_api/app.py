@@ -6,6 +6,7 @@ idle/redeploy. A fresh key-bound Free Tier receipt is required for live Gemini.
 """
 
 import asyncio
+import base64
 from contextlib import asynccontextmanager
 import hashlib
 import hmac
@@ -28,7 +29,7 @@ from typing import Literal
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "tools"))
 from gemini_synthetic_smoke import (  # noqa: E402
-    PROMPT_V3, PROMPT_V4, SafeStop, api_json, events_from_sides, ordered_frames,
+    PROMPT_V2, PROMPT_V3, PROMPT_V4, SCHEMA_V2, SafeStop, api_json, events_from_sides, ordered_frames,
     validate_result, verify_free_tier,
 )
 from synthetic_geometry import measure_side  # noqa: E402
@@ -52,7 +53,7 @@ KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 def live_guard():
-    if MODEL not in ("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite"):
+    if MODEL not in ("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.8-flash"):
         raise SafeStop("MODEL_NOT_IN_VERIFIED_FREE_ALLOWLIST")
     if os.getenv("GEMINI_LIVE_ENABLED") != "1" or HALTED:
         raise SafeStop("LIVE_DISABLED_OR_HALTED_NO_RETRY")
@@ -176,7 +177,7 @@ class Selection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scenario: str
     engine: Literal["recorded", "gemini"] = "recorded"
-    profile: Literal["frame-sides-v3", "temporal-witness-v5", "center-sides-v6"] | None = None
+    profile: Literal["frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7"] | None = None
 
 
 def analyze(selection):
@@ -187,7 +188,7 @@ def analyze(selection):
     if digest != row["video_sha256"]:
         raise SafeStop("BUNDLED_SYNTHETIC_HASH_MISMATCH")
     profile = (selection.profile or PROFILE) if selection.engine == "gemini" else "frame-sides-v3"
-    if profile not in ("frame-sides-v3", "temporal-witness-v5", "center-sides-v6"):
+    if profile not in ("frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7"):
         raise SafeStop("UNRECOGNIZED_SYNTHETIC_PROMPT_PROFILE")
     parts, sampled = visual_input(path) if profile == "temporal-witness-v5" else ordered_frames(path)
     frames = [{"frame_id": f["frame_id"], "timestamp_sec": f["timestamp_sec"]}
@@ -196,6 +197,8 @@ def analyze(selection):
         raise SafeStop("RECORDED_SOURCE_TIMELINE_MISMATCH")
     model_version = "recorded-gemini-2.5-flash"
     if selection.engine == "gemini":
+        if profile == "native-video-v7":
+            parts = [{"inlineData": {"mimeType": "video/mp4", "data": base64.b64encode(path.read_bytes()).decode()}, "videoMetadata": {"fps": 4}}]
         delay = max(0, 13 - (time.monotonic() - LAST_CALL))
         if delay:
             time.sleep(delay)
@@ -205,10 +208,10 @@ def analyze(selection):
         try:
             with httpx.Client(timeout=120, follow_redirects=False, trust_env=False) as client:
                 body = api_json(client, "POST", f"/models/{MODEL}:generateContent", key, {
-                    "contents": [{"role": "user", "parts": [*parts, {"text": WITNESS_PROMPT if profile == "temporal-witness-v5" else PROMPT_V4 if profile == "center-sides-v6" else PROMPT_V3}]}],
-                    "generationConfig": {"temperature": 0, "maxOutputTokens": 8192 if profile == "center-sides-v6" else 4096,
+                    "contents": [{"role": "user", "parts": [*parts, {"text": PROMPT_V2 if profile == "native-video-v7" else WITNESS_PROMPT if profile == "temporal-witness-v5" else PROMPT_V4 if profile == "center-sides-v6" else PROMPT_V3}]}],
+                    "generationConfig": {"temperature": 0, "maxOutputTokens": 8192 if profile in ("center-sides-v6", "native-video-v7") else 4096,
                         "responseMimeType": "application/json",
-                        "responseSchema": WITNESS_SCHEMA if profile == "temporal-witness-v5" else {"type": "OBJECT", "properties": {"frame_sides": {
+                        "responseSchema": SCHEMA_V2 if profile == "native-video-v7" else WITNESS_SCHEMA if profile == "temporal-witness-v5" else {"type": "OBJECT", "properties": {"frame_sides": {
                             "type": "ARRAY", "minItems": len(frames), "maxItems": len(frames),
                             "items": {"type": "STRING", "enum": ["left", "on", "right"]}}},
                             "required": ["frame_sides"]},
@@ -216,7 +219,7 @@ def analyze(selection):
                            if MODEL.startswith("gemini-2.5-") else
                            {"thinkingConfig": {"thinkingLevel": "HIGH"}}
                            if profile == "center-sides-v6" else {})}})
-            raw = parse_witnesses(body, frames) if profile == "temporal-witness-v5" else validate_result(body, row["duration_sec"], frames=frames)
+            raw = parse_witnesses(body, frames) if profile == "temporal-witness-v5" else validate_result(body, row["duration_sec"], witnesses=profile == "native-video-v7", frames=None if profile == "native-video-v7" else frames)
             model_version = body.get("modelVersion", MODEL)
         except Exception:
             HALTED = True  # Never automatically retry/resume after a provider failure.

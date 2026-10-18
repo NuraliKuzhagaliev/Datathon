@@ -187,3 +187,21 @@ def test_witnesses_reject_unsupported_model_claims(api,change):
     body={'candidates':[{'finishReason':'MAX_TOKENS' if change=='truncated' else 'STOP','content':{'parts':[{'text':json.dumps({'crossings':rows})}]}}]}
     with pytest.raises(app.SafeStop):
         parse_witnesses(body,frames)
+
+
+def test_native_video_preserves_model_timestamps_without_geometric_correction(api,monkeypatch):
+    app,client=api
+    enable(app,monkeypatch)
+    def provider(client,method,route,key,payload):
+        part=payload['contents'][0]['parts'][0]
+        assert part['inlineData']['mimeType']=='video/mp4' and part['videoMetadata']['fps']==4
+        result={'event_times_sec':[2.9],'direction_summary':'Model-selected time',
+                'crossings':[{'before_time_sec':2.5,'before_side':'left','time_sec':2.9,
+                              'after_time_sec':3.3,'after_side':'right','direction':'left_to_right'}]}
+        return {'candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps(result)}]}}]}
+    monkeypatch.setattr(app,'api_json',provider)
+    response=client.post('/api/synthetic/jobs',json={'scenario':'forward','engine':'gemini','profile':'native-video-v7'},headers=AUTH)
+    row=wait(client,response.json()['job_id'])
+    assert row['status']=='done',row
+    assert row['result']['raw_gemini_result']['event_times_sec']==[2.9]
+    assert row['result']['geometry_result']['event_times_sec']==[3.0]
