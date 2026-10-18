@@ -48,7 +48,7 @@ KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 def live_guard():
-    if MODEL not in ("gemini-2.5-flash", "gemini-2.5-flash-lite"):
+    if MODEL not in ("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite"):
         raise SafeStop("MODEL_NOT_IN_VERIFIED_FREE_ALLOWLIST")
     if os.getenv("GEMINI_LIVE_ENABLED") != "1" or HALTED:
         raise SafeStop("LIVE_DISABLED_OR_HALTED_NO_RETRY")
@@ -134,6 +134,7 @@ def health():
 
 
 @app.get("/health/ready")
+@app.get("/api/synthetic/health")
 def ready():
     reason = None
     try:
@@ -145,6 +146,11 @@ def ready():
             "model": MODEL, "live_requests_started_this_instance": LIVE_CALLS,
             "max_live_requests_this_instance": 8, "results_ephemeral": True,
             "jury_analysis_ready": False, "boot_id": BOOT_ID}
+
+
+@app.get("/api/synthetic/session", dependencies=[Depends(authenticate)])
+def session():
+    return ready()
 
 
 @app.get("/api/synthetic/scenarios")
@@ -197,7 +203,8 @@ def analyze(selection):
                             "type": "ARRAY", "minItems": len(frames), "maxItems": len(frames),
                             "items": {"type": "STRING", "enum": ["left", "on", "right"]}}},
                             "required": ["frame_sides"]},
-                        "thinkingConfig": {"thinkingBudget": 1024}}})
+                        **({"thinkingConfig": {"thinkingBudget": 1024}}
+                           if MODEL.startswith("gemini-2.5-") else {})}})
             raw = validate_result(body, row["duration_sec"], frames=frames)
             model_version = body.get("modelVersion", MODEL)
         except Exception:

@@ -69,6 +69,9 @@ def test_auth_uploads_unknown_inputs_and_expiry(api):
     assert client.get("/api/synthetic/jobs/old-instance", headers=AUTH).status_code == 410
     assert client.get("/media/unknown.mp4").status_code == 404
     assert client.get("/health/ready").json()["jury_analysis_ready"] is False
+    assert client.get("/api/synthetic/session").status_code == 401
+    assert client.get("/api/synthetic/session", headers=AUTH).json()["synthetic_only"] is True
+    assert client.get("/api/synthetic/health").json()["jury_analysis_ready"] is False
 
 
 def enable(app, monkeypatch, age=0):
