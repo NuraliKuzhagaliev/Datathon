@@ -177,7 +177,7 @@ class Selection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scenario: str
     engine: Literal["recorded", "gemini"] = "recorded"
-    profile: Literal["frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7"] | None = None
+    profile: Literal["frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high"] | None = None
 
 
 def analyze(selection):
@@ -188,8 +188,9 @@ def analyze(selection):
     if digest != row["video_sha256"]:
         raise SafeStop("BUNDLED_SYNTHETIC_HASH_MISMATCH")
     profile = (selection.profile or PROFILE) if selection.engine == "gemini" else "frame-sides-v3"
-    if profile not in ("frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7"):
+    if profile not in ("frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high"):
         raise SafeStop("UNRECOGNIZED_SYNTHETIC_PROMPT_PROFILE")
+    native = profile in ("native-video-v7", "native-video-v8-high")
     parts, sampled = visual_input(path) if profile == "temporal-witness-v5" else ordered_frames(path)
     frames = [{"frame_id": f["frame_id"], "timestamp_sec": f["timestamp_sec"]}
               for f in sampled]  # Scoring labels are never detector inputs.
@@ -197,7 +198,7 @@ def analyze(selection):
         raise SafeStop("RECORDED_SOURCE_TIMELINE_MISMATCH")
     model_version = "recorded-gemini-2.5-flash"
     if selection.engine == "gemini":
-        if profile == "native-video-v7":
+        if native:
             parts = [{"inlineData": {"mimeType": "video/mp4", "data": base64.b64encode(path.read_bytes()).decode()}, "videoMetadata": {"fps": 4}}]
         delay = max(0, 13 - (time.monotonic() - LAST_CALL))
         if delay:
@@ -208,18 +209,19 @@ def analyze(selection):
         try:
             with httpx.Client(timeout=120, follow_redirects=False, trust_env=False) as client:
                 body = api_json(client, "POST", f"/models/{MODEL}:generateContent", key, {
-                    "contents": [{"role": "user", "parts": [*parts, {"text": PROMPT_V2 if profile == "native-video-v7" else WITNESS_PROMPT if profile == "temporal-witness-v5" else PROMPT_V4 if profile == "center-sides-v6" else PROMPT_V3}]}],
-                    "generationConfig": {"temperature": 0, "maxOutputTokens": 8192 if profile in ("center-sides-v6", "native-video-v7") else 4096,
+                    "contents": [{"role": "user", "parts": [*parts, {"text": PROMPT_V2 if native else WITNESS_PROMPT if profile == "temporal-witness-v5" else PROMPT_V4 if profile == "center-sides-v6" else PROMPT_V3}]}],
+                    "generationConfig": {"temperature": 0, "maxOutputTokens": 8192 if native or profile == "center-sides-v6" else 4096,
                         "responseMimeType": "application/json",
-                        "responseSchema": SCHEMA_V2 if profile == "native-video-v7" else WITNESS_SCHEMA if profile == "temporal-witness-v5" else {"type": "OBJECT", "properties": {"frame_sides": {
+                        "responseSchema": SCHEMA_V2 if native else WITNESS_SCHEMA if profile == "temporal-witness-v5" else {"type": "OBJECT", "properties": {"frame_sides": {
                             "type": "ARRAY", "minItems": len(frames), "maxItems": len(frames),
                             "items": {"type": "STRING", "enum": ["left", "on", "right"]}}},
                             "required": ["frame_sides"]},
+                        **({"mediaResolution": "MEDIA_RESOLUTION_HIGH"} if profile == "native-video-v8-high" else {}),
                         **({"thinkingConfig": {"thinkingBudget": 1024}}
                            if MODEL.startswith("gemini-2.5-") else
                            {"thinkingConfig": {"thinkingLevel": "HIGH"}}
                            if profile == "center-sides-v6" else {})}})
-            raw = parse_witnesses(body, frames) if profile == "temporal-witness-v5" else validate_result(body, row["duration_sec"], witnesses=profile == "native-video-v7", frames=None if profile == "native-video-v7" else frames)
+            raw = parse_witnesses(body, frames) if profile == "temporal-witness-v5" else validate_result(body, row["duration_sec"], witnesses=native, frames=None if native else frames)
             model_version = body.get("modelVersion", MODEL)
         except Exception:
             HALTED = True  # Never automatically retry/resume after a provider failure.
