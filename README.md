@@ -14,8 +14,8 @@
 
 | Кто | Компьютер | Задача | Промпт | Ветка |
 | --- | --- | --- | --- | --- |
-| A | RTX 4060 8 GB, Core i7 13-го поколения | Локальный AI, Python API, правила, оценка качества, развёртывание и интеграция | [Nurali, participant A](forte_handoff/CODEX_A_MASTER_PROMPT.txt) | `codex/backend` |
-| B | GTX 1650 4 GB | Веб-интерфейс, дизайн, Electron desktop, клиент API | [Abylay, participant B](forte_handoff/CODEX_B_MASTER_PROMPT.txt) | `codex/frontend` |
+| A | RTX 4060 8 GB, Core i7 13-го поколения | Локальный AI, Python API, правила, оценка качества, развёртывание и интеграция | [Nurali, participant A](forte_handoff/PARTICIPANT_A_MASTER_PROMPT.txt) | `codex/backend` |
+| B | GTX 1650 4 GB | Веб-интерфейс, дизайн, Electron desktop, клиент API | [Abylay, participant B](forte_handoff/PARTICIPANT_B_MASTER_PROMPT.txt) | `codex/frontend` |
 
 Создать свою ветку после клонирования:
 
