@@ -8,6 +8,7 @@ idle/redeploy. A fresh key-bound Free Tier receipt is required for live Gemini.
 import asyncio
 import base64
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 import hashlib
 import hmac
 import json
@@ -62,7 +63,7 @@ class ModelResponseError(SafeStop):
 
 
 def live_guard():
-    if MODEL not in ("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite"):
+    if MODEL not in ("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.8-flash"):
         raise SafeStop("MODEL_NOT_IN_VERIFIED_FREE_ALLOWLIST")
     if os.getenv("GEMINI_LIVE_ENABLED") != "1" or HALTED:
         raise SafeStop("LIVE_DISABLED_OR_HALTED_NO_RETRY")
@@ -70,8 +71,24 @@ def live_guard():
     try:
         receipt = json.loads(os.getenv("GEMINI_FREE_TIER_RECEIPT", "{}"))
         verify_free_tier(receipt, key)
+        if MODEL == "gemini-3.8-flash":
+            # Project Free Tier alone is insufficient proof for this candidate.
+            # Require a separate fresh verification of this exact model's prices.
+            pricing = json.loads(os.getenv("GEMINI_MODEL_PRICING_RECEIPT", "{}"))
+            if not isinstance(pricing, dict):
+                raise ValueError()
+            checked = datetime.fromisoformat(pricing["checked_at_utc"])
+            age = (datetime.now(timezone.utc)-checked).total_seconds()
+            if (pricing.get("model") != MODEL or pricing.get("currency") != "USD"
+                    or pricing.get("input_usd_per_million") != 0
+                    or pricing.get("output_usd_per_million") != 0
+                    or pricing.get("official_source") != "https://ai.google.dev/gemini-api/docs/pricing"
+                    or pricing.get("verified_in_ai_studio") is not True
+                    or pricing.get("key_sha256") != receipt["key_sha256"]
+                    or not 0 <= age <= 1800):
+                raise ValueError()
     except (ValueError, KeyError, TypeError):
-        raise SafeStop("FRESH_FREE_TIER_VERIFICATION_REQUIRED") from None
+        raise SafeStop("FRESH_PROJECT_AND_MODEL_FREE_VERIFICATION_REQUIRED") from None
     if not key or LIVE_CALLS >= 8:
         raise SafeStop("LIVE_REQUEST_BUDGET_EXHAUSTED")
     return key

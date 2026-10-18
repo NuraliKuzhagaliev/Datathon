@@ -249,3 +249,20 @@ def test_crossing_projection_keeps_wire_output_and_never_changes_model_times(api
     assert parsed['event_times_sec']==[2.9]
     assert parsed['wire_output']==wire and parsed['wire_output']['event_times_sec']==[]
     assert parsed['event_times_source']=='model_reported_crossings_only'
+
+
+def test_new_model_requires_its_own_free_price_proof_not_only_project_tier(api,monkeypatch):
+    app,client=api
+    enable(app,monkeypatch)
+    monkeypatch.setattr(app,'MODEL','gemini-3.8-flash')
+    assert client.get('/health/ready').json()['gemini_live_ready'] is False
+    proof={'checked_at_utc':datetime.now(timezone.utc).isoformat(),'model':'gemini-3.8-flash',
+           'currency':'USD','input_usd_per_million':0,'output_usd_per_million':0,
+           'official_source':'https://ai.google.dev/gemini-api/docs/pricing',
+           'verified_in_ai_studio':True,'key_sha256':hashlib.sha256(b'fake-provider-key').hexdigest()}
+    monkeypatch.setenv('GEMINI_MODEL_PRICING_RECEIPT',json.dumps(proof))
+    assert client.get('/health/ready').json()['gemini_live_ready'] is True
+    proof['input_usd_per_million']=.75
+    monkeypatch.setenv('GEMINI_MODEL_PRICING_RECEIPT',json.dumps(proof))
+    assert client.get('/health/ready').json()['gemini_live_ready'] is False
+    assert app.LIVE_CALLS==0
