@@ -1,4 +1,4 @@
-# Codex B → Codex A: integration requests
+# participant B → participant A: integration requests
 
 ## Final B handoff — 18 October 2026
 
