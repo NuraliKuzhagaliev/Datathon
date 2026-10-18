@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+allowBuilds:
+  electron-winstaller: false
+  electron: true
+  esbuild: true
+minimumReleaseAgeExclude:
+  - electron@44.9.0
+  - lucide-react@1.59.0
