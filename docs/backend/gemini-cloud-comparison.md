@@ -28,3 +28,5 @@ Failures and rejected variants were retained. No provider retries or paid fallba
 The suite is development data: eight simple geometric examples cannot establish 90% real-world accuracy, banking-rule understanding, unseen-camera performance or submission readiness. Real-video upload and the jury detector remain disabled. Free Tier verification expires after 30 minutes, and Render Free may sleep and lose ephemeral jobs.
 
 References: [Gemini 3.1 Flash Lite](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite), [Free Tier pricing](https://ai.google.dev/gemini-api/docs/pricing), [media resolution](https://ai.google.dev/gemini-api/docs/generate-content/media-resolution).
+
+Targeted production verification of v12: a fresh repeated-crossing job submitted through the main Vercel site completed on Render in 99.598 s using two model requests. Exported model crossings were left-to-right at 2.0 s, right-to-left at 5.0 s and left-to-right at 8.0 s, each with temporal witnesses. The target times were unchanged. This verifies the omitted auxiliary return; the other seven clips were not rerun under v12.
