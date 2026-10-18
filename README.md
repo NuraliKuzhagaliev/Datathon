@@ -2,6 +2,8 @@
 
 Local video review for possible cashier-procedure violations, with source-linked evidence and a separate human decision.
 
+**Synthetic Gemini lab:** open `/#synthetic-lab` or select **Gemini demo** in the navigation. Eight regenerated public videos include recorded Gemini 2.5 Flash observations, source timestamps, a working browser-side pixel check and downloadable JSON reports. No key, backend or new cloud request is required. These are geometric demonstrations, not bank-violation detection. The full saved-response replay passed 8/8; the latest fresh API run completed 3/8 before the free daily quota was exhausted. See [implementation and verification](docs/backend/synthetic-web-demo.md).
+
 **Status at common audit, 18 October 2026:** backend 0.3.2 and the React/Electron frontend are integrated on contract 1.0.0. The new private portable bundle and full Windows package passed integrity and real-model execution checks. The local API is restored from that bundle with original credentials. Public API routing still awaits publication of the prepared replacement rewrites; the updated static site is published and all 11 public files match the checked local build. Full development evaluation completed: production recall 0/15; Qwen3.5-4B is rejected with 12/28 technical failures and no successful positive detections. Useful recognition, independent access, disconnected desktop qualification and redistribution review remain open. See the [whole-project status](docs/integration/PROJECT_STATUS.md), [acceptance matrix](docs/frontend/INTEGRATION_CHECKLIST.md) and [executed evidence](docs/integration/verification.md).
 
 ## Backend setup
