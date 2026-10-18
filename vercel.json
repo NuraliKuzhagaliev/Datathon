@@ -4,6 +4,12 @@
   "buildCommand": "pnpm build:web",
   "installCommand": "pnpm install --frozen-lockfile",
   "outputDirectory": "apps/web/dist",
+  "rewrites": [
+    {
+      "source": "/api/synthetic/:path*",
+      "destination": "https://cashproof-synthetic-api.onrender.com/api/synthetic/:path*"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

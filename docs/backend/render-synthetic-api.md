@@ -9,6 +9,16 @@ No video upload, user prompt, remote URL or private footage input is available.
 
 Public console/API base: https://cashproof-synthetic-api.onrender.com
 
+The primary site `https://cashproof-web.vercel.app/#synthetic-lab` now has a
+cloud mode. It forwards only `/api/synthetic/*` to this Render service using an
+external Vercel rewrite; `/api/v1/*` and `/api/ui/*` are not redirected here.
+`GET /api/synthetic/session` authenticates the laboratory key and returns live
+readiness. The UI keeps that key only in component memory, never browser storage,
+cookies or URLs. The Gemini key remains in Render. The main result is the raw
+Gemini event list; independent geometry is collapsed into a separate diagnostic.
+The browser validates the selected source hash, scenario, job ID and engine.
+Changing scenario or leaving aborts waiting, not the server's already accepted job.
+
 Single Python web service; explicitly select **Free**, one instance, Frankfurt.
 No database, disk, worker, paid compute or paid fallback is provisioned. Existing
 Render services are untouched. Free instance hours are shared with the workspace.
@@ -33,8 +43,9 @@ There is no provider request flag that guarantees free billing; verified account
 tier is a prerequisite, and this deliberately fails closed rather than promising
 unlimited free inference. Do not attach billing or change plans.
 
-`GEMINI_MODEL` explicitly selects `gemini-2.5-flash` (default) or the separately
-free-tier-verified `gemini-2.5-flash-lite`. There is **no automatic fallback**.
+`GEMINI_MODEL` explicitly selects `gemini-2.5-flash` (default),
+`gemini-2.5-flash-lite` or the separately free-tier-verified
+`gemini-3.1-flash-lite`. There is **no automatic fallback**.
 Flash has already exhausted its observed daily quota; Flash Lite can be selected
 explicitly for a new synthetic cloud experiment, without claiming Flash's results
 transfer to Lite. Both are capped at eight request starts per instance,
@@ -81,3 +92,39 @@ Tests run all eight generated fixtures through the server, verify source times,
 auth, upload rejection, expiry, concurrency, no live calls in recorded mode,
 key-bound free-tier gating, request caps, mocked live output and 429 stop behavior.
 These tests do not consume Gemini quota or constitute fresh model accuracy.
+
+## Model-only synthetic diagnostics
+
+The new 3.1 Flash Lite baseline with the original frame-side prompt completed
+8/8 fresh requests: raw events passed 7/8 within 0.5 seconds, missing the start
+close to the line. Expected times are used only for scoring after inference.
+This is a small development suite, not a generalization or banking-accuracy claim.
+
+`GEMINI_PROMPT_PROFILE` selects `frame-sides-v3`, `center-sides-v6` or experimental
+`temporal-witness-v5`;
+authenticated experiment requests may explicitly select either `profile`.
+The v5 experiment uses uniform 2 fps source PTS plus the final source frame, a
+fixed camera crop enlarged beside context, and explicit source frame IDs. It
+does not find candidates using pixel geometry. The model chooses crossing,
+before and after frame IDs plus direction; the server validates their existence,
+time order and witness interval, then maps IDs to original timestamps. No
+geometric event result or reference time is given to the model or substituted
+into the raw result. Cropped model-input panels are not original evidence.
+
+The v5 live probe was rejected: only 1/3 completed model event lists passed,
+including a wrong direction, followed by one provider HTTP 503 technical failure.
+It is not the default. The v6 candidate keeps unmodified source images, tightens
+the center/overlap distinction and enables HIGH thinking on Gemini 3.1; model
+event timing still comes only from model observations and source PTS.
+
+The v6 probe also missed the near-line start, then stopped on provider HTTP 503;
+there were no retries. A final `native-video-v7` comparison uses only the bundled
+MP4, explicit 4 fps video metadata, and model-reported before/event/after times.
+It validates direction and temporal consistency without changing model times.
+Only Gemini 2.5 Flash, 2.5 Flash Lite and 3.1 Flash Lite remain in the runtime
+allowlist. A proposed 3.8 experiment was rejected by automatic approval review
+and was not enabled; no 3.8 generation request was made in this work.
+
+Official model/pricing references checked on 18 October 2026:
+https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite and
+https://ai.google.dev/gemini-api/docs/pricing .
