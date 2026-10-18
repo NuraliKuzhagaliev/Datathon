@@ -43,12 +43,11 @@ There is no provider request flag that guarantees free billing; verified account
 tier is a prerequisite, and this deliberately fails closed rather than promising
 unlimited free inference. Do not attach billing or change plans.
 
-`GEMINI_MODEL` explicitly selects `gemini-2.5-flash` (default),
-`gemini-2.5-flash-lite` or the separately free-tier-verified
-`gemini-3.1-flash-lite`. There is **no automatic fallback**.
-Flash has already exhausted its observed daily quota; Flash Lite can be selected
-explicitly for a new synthetic cloud experiment, without claiming Flash's results
-transfer to Lite. Both are capped at eight request starts per instance,
+`GEMINI_MODEL` allows `gemini-2.5-flash`, `gemini-2.5-flash-lite`,
+`gemini-3.1-flash-lite` and `gemini-3.8-flash`. The selected release uses 3.8
+with an additional fresh exact-model price proof. There is **no automatic
+fallback**. Historical Flash quota exhaustion does not change the selected
+model. Every configuration is capped at eight request starts per instance,
 one job at a time, at least 13 seconds between request starts, no automatic retry
 or model fallback. Any provider exception stops further live requests for that
 instance. HTTP 429 is a technical failure, never a successful negative. No
@@ -67,7 +66,7 @@ background wakeups or repeated quota probes are installed.
 
 Recorded mode uses captured Gemini frame-side predictions. Independently, the
 server decodes the checked-in source and measures **every sampled frame** using
-pixel geometry. Live mode sends only sampled synthetic frames to Gemini before
+pixel geometry. Live mode sends the selected sampled frames or native synthetic MP4 to Gemini before
 the same independent baseline. Both preserve raw model output separately from
 pixel measurements. A fresh Flash Lite cloud test missed the near-line start;
 measuring only model-labelled 'on' frames cannot detect confident model errors.
@@ -146,3 +145,9 @@ raw model results and JSON export. The existing real-video API is disabled.
 Official model/pricing references checked on 18 October 2026:
 https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite and
 https://ai.google.dev/gemini-api/docs/pricing .
+
+## Targeted production verification
+
+Targeted production verification of v12: a fresh repeated-crossing job submitted through the main Vercel site completed on Render in 99.598 s using two model requests. Exported model crossings were left-to-right at 2.0 s, right-to-left at 5.0 s and left-to-right at 8.0 s, each with temporal witnesses. The target times were unchanged. This verifies the omitted auxiliary return; the other seven clips were not rerun under v12.
+
+The exported original responses are retained in the local evaluation receipt. All five compiled site files matched the public deployment; missing and invalid laboratory keys both returned HTTP 401.
