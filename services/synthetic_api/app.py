@@ -53,7 +53,7 @@ KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 def live_guard():
-    if MODEL not in ("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.8-flash"):
+    if MODEL not in ("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite"):
         raise SafeStop("MODEL_NOT_IN_VERIFIED_FREE_ALLOWLIST")
     if os.getenv("GEMINI_LIVE_ENABLED") != "1" or HALTED:
         raise SafeStop("LIVE_DISABLED_OR_HALTED_NO_RETRY")
