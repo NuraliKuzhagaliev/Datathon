@@ -348,5 +348,9 @@
   "Лицензии интерфейса и шрифта сохранены в приложении и доступны без сети.": "Interface and font licenses are bundled and available offline.",
   "В Windows сведения Electron и Chromium находятся в LICENSE.electron.txt и LICENSES.chromium.html рядом с EXE. Состав backend указан в его manifest.json. Это не подтверждение полной проверки прав распространения.": "On Windows, Electron and Chromium notices are in LICENSE.electron.txt and LICENSES.chromium.html beside the EXE. The backend inventory is in its manifest.json. This does not certify a complete redistribution review.",
   "Открыть лицензии интерфейса": "Open interface licenses",
-  "Лицензии интерфейса": "Interface licenses"
+  "Лицензии интерфейса": "Interface licenses",
+  "Демо Gemini и геометрии": "Gemini and geometry demo",
+  "Демо Gemini": "Gemini demo",
+  "Синтетическая лаборатория": "Synthetic lab",
+  "Демо без API": "Demo without API"
 }

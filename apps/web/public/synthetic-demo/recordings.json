@@ -1,0 +1,1213 @@
+{
+  "version": 1,
+  "synthetic_only": true,
+  "mode": "recorded_gemini_and_live_browser_geometry",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "frame-sides-v3",
+  "fresh_api_completed": 3,
+  "fresh_api_planned": 8,
+  "fresh_api_stop": "free_daily_quota_20_of_20",
+  "full_replay_passed": 8,
+  "full_replay_total": 8,
+  "cases": [
+    {
+      "id": "near_line_start",
+      "title_ru": "Старт рядом с линией",
+      "title_en": "Start close to the line",
+      "video_url": "/synthetic-demo/near_line_start.mp4",
+      "duration_sec": 6,
+      "video_sha256": "a30b9699caea12bfc54753ded0a76d6003cd5b11a5d8f1eae88064676d899429",
+      "frames": [
+        {
+          "frame_id": "f0000",
+          "timestamp_sec": 0.0
+        },
+        {
+          "frame_id": "f0001",
+          "timestamp_sec": 0.3
+        },
+        {
+          "frame_id": "f0002",
+          "timestamp_sec": 0.5
+        },
+        {
+          "frame_id": "f0003",
+          "timestamp_sec": 0.8
+        },
+        {
+          "frame_id": "f0004",
+          "timestamp_sec": 1.0
+        },
+        {
+          "frame_id": "f0005",
+          "timestamp_sec": 1.3
+        },
+        {
+          "frame_id": "f0006",
+          "timestamp_sec": 1.5
+        },
+        {
+          "frame_id": "f0007",
+          "timestamp_sec": 1.8
+        },
+        {
+          "frame_id": "f0008",
+          "timestamp_sec": 2.0
+        },
+        {
+          "frame_id": "f0009",
+          "timestamp_sec": 2.3
+        },
+        {
+          "frame_id": "f0010",
+          "timestamp_sec": 2.5
+        },
+        {
+          "frame_id": "f0011",
+          "timestamp_sec": 2.8
+        },
+        {
+          "frame_id": "f0012",
+          "timestamp_sec": 3.0
+        },
+        {
+          "frame_id": "f0013",
+          "timestamp_sec": 3.3
+        },
+        {
+          "frame_id": "f0014",
+          "timestamp_sec": 3.5
+        },
+        {
+          "frame_id": "f0015",
+          "timestamp_sec": 3.8
+        },
+        {
+          "frame_id": "f0016",
+          "timestamp_sec": 4.0
+        },
+        {
+          "frame_id": "f0017",
+          "timestamp_sec": 4.3
+        },
+        {
+          "frame_id": "f0018",
+          "timestamp_sec": 4.5
+        },
+        {
+          "frame_id": "f0019",
+          "timestamp_sec": 4.8
+        },
+        {
+          "frame_id": "f0020",
+          "timestamp_sec": 5.0
+        },
+        {
+          "frame_id": "f0021",
+          "timestamp_sec": 5.3
+        },
+        {
+          "frame_id": "f0022",
+          "timestamp_sec": 5.5
+        },
+        {
+          "frame_id": "f0023",
+          "timestamp_sec": 5.8
+        }
+      ],
+      "recorded_at_utc": "2026-10-18T00:33:10.734728+00:00",
+      "gemini_sides": [
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right"
+      ],
+      "gemini_event_times_sec": [],
+      "reference_event_times_sec": [
+        1.5
+      ],
+      "recorded_hybrid_event_times_sec": [
+        1.5
+      ]
+    },
+    {
+      "id": "forward",
+      "title_ru": "Пересечение слева направо",
+      "title_en": "Left-to-right crossing",
+      "video_url": "/synthetic-demo/forward.mp4",
+      "duration_sec": 6,
+      "video_sha256": "de94a3aacc69074f5771a272640032ae5441bfde5c719bd02f251269926bceaa",
+      "frames": [
+        {
+          "frame_id": "f0000",
+          "timestamp_sec": 0.0
+        },
+        {
+          "frame_id": "f0001",
+          "timestamp_sec": 0.3
+        },
+        {
+          "frame_id": "f0002",
+          "timestamp_sec": 0.5
+        },
+        {
+          "frame_id": "f0003",
+          "timestamp_sec": 0.8
+        },
+        {
+          "frame_id": "f0004",
+          "timestamp_sec": 1.0
+        },
+        {
+          "frame_id": "f0005",
+          "timestamp_sec": 1.3
+        },
+        {
+          "frame_id": "f0006",
+          "timestamp_sec": 1.5
+        },
+        {
+          "frame_id": "f0007",
+          "timestamp_sec": 1.8
+        },
+        {
+          "frame_id": "f0008",
+          "timestamp_sec": 2.0
+        },
+        {
+          "frame_id": "f0009",
+          "timestamp_sec": 2.3
+        },
+        {
+          "frame_id": "f0010",
+          "timestamp_sec": 2.5
+        },
+        {
+          "frame_id": "f0011",
+          "timestamp_sec": 2.8
+        },
+        {
+          "frame_id": "f0012",
+          "timestamp_sec": 3.0
+        },
+        {
+          "frame_id": "f0013",
+          "timestamp_sec": 3.3
+        },
+        {
+          "frame_id": "f0014",
+          "timestamp_sec": 3.5
+        },
+        {
+          "frame_id": "f0015",
+          "timestamp_sec": 3.8
+        },
+        {
+          "frame_id": "f0016",
+          "timestamp_sec": 4.0
+        },
+        {
+          "frame_id": "f0017",
+          "timestamp_sec": 4.3
+        },
+        {
+          "frame_id": "f0018",
+          "timestamp_sec": 4.5
+        },
+        {
+          "frame_id": "f0019",
+          "timestamp_sec": 4.8
+        },
+        {
+          "frame_id": "f0020",
+          "timestamp_sec": 5.0
+        },
+        {
+          "frame_id": "f0021",
+          "timestamp_sec": 5.3
+        },
+        {
+          "frame_id": "f0022",
+          "timestamp_sec": 5.5
+        },
+        {
+          "frame_id": "f0023",
+          "timestamp_sec": 5.8
+        }
+      ],
+      "recorded_at_utc": "2026-10-18T00:31:32.617380+00:00",
+      "gemini_sides": [
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "on",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right"
+      ],
+      "gemini_event_times_sec": [
+        3.0
+      ],
+      "reference_event_times_sec": [
+        3.0
+      ],
+      "recorded_hybrid_event_times_sec": [
+        3.0
+      ]
+    },
+    {
+      "id": "reverse",
+      "title_ru": "Обратное направление",
+      "title_en": "Reverse direction",
+      "video_url": "/synthetic-demo/reverse.mp4",
+      "duration_sec": 6,
+      "video_sha256": "7400171ed11e8c80b35928c69f0c638188b4d3778e0d128ded5bcacc98f2cc71",
+      "frames": [
+        {
+          "frame_id": "f0000",
+          "timestamp_sec": 0.0
+        },
+        {
+          "frame_id": "f0001",
+          "timestamp_sec": 0.3
+        },
+        {
+          "frame_id": "f0002",
+          "timestamp_sec": 0.5
+        },
+        {
+          "frame_id": "f0003",
+          "timestamp_sec": 0.8
+        },
+        {
+          "frame_id": "f0004",
+          "timestamp_sec": 1.0
+        },
+        {
+          "frame_id": "f0005",
+          "timestamp_sec": 1.3
+        },
+        {
+          "frame_id": "f0006",
+          "timestamp_sec": 1.5
+        },
+        {
+          "frame_id": "f0007",
+          "timestamp_sec": 1.8
+        },
+        {
+          "frame_id": "f0008",
+          "timestamp_sec": 2.0
+        },
+        {
+          "frame_id": "f0009",
+          "timestamp_sec": 2.3
+        },
+        {
+          "frame_id": "f0010",
+          "timestamp_sec": 2.5
+        },
+        {
+          "frame_id": "f0011",
+          "timestamp_sec": 2.8
+        },
+        {
+          "frame_id": "f0012",
+          "timestamp_sec": 3.0
+        },
+        {
+          "frame_id": "f0013",
+          "timestamp_sec": 3.3
+        },
+        {
+          "frame_id": "f0014",
+          "timestamp_sec": 3.5
+        },
+        {
+          "frame_id": "f0015",
+          "timestamp_sec": 3.8
+        },
+        {
+          "frame_id": "f0016",
+          "timestamp_sec": 4.0
+        },
+        {
+          "frame_id": "f0017",
+          "timestamp_sec": 4.3
+        },
+        {
+          "frame_id": "f0018",
+          "timestamp_sec": 4.5
+        },
+        {
+          "frame_id": "f0019",
+          "timestamp_sec": 4.8
+        },
+        {
+          "frame_id": "f0020",
+          "timestamp_sec": 5.0
+        },
+        {
+          "frame_id": "f0021",
+          "timestamp_sec": 5.3
+        },
+        {
+          "frame_id": "f0022",
+          "timestamp_sec": 5.5
+        },
+        {
+          "frame_id": "f0023",
+          "timestamp_sec": 5.8
+        }
+      ],
+      "recorded_at_utc": "2026-10-18T00:31:32.617380+00:00",
+      "gemini_sides": [
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "on",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left"
+      ],
+      "gemini_event_times_sec": [],
+      "reference_event_times_sec": [],
+      "recorded_hybrid_event_times_sec": []
+    },
+    {
+      "id": "repeated",
+      "title_ru": "Повторные пересечения",
+      "title_en": "Repeated crossings",
+      "video_url": "/synthetic-demo/repeated.mp4",
+      "duration_sec": 10,
+      "video_sha256": "eaed0d8f6c31feac5fb1ba4c7344ed92f542534cf104b3baa00c82cecb3e9c18",
+      "frames": [
+        {
+          "frame_id": "f0000",
+          "timestamp_sec": 0.0
+        },
+        {
+          "frame_id": "f0001",
+          "timestamp_sec": 0.3
+        },
+        {
+          "frame_id": "f0002",
+          "timestamp_sec": 0.5
+        },
+        {
+          "frame_id": "f0003",
+          "timestamp_sec": 0.8
+        },
+        {
+          "frame_id": "f0004",
+          "timestamp_sec": 1.0
+        },
+        {
+          "frame_id": "f0005",
+          "timestamp_sec": 1.3
+        },
+        {
+          "frame_id": "f0006",
+          "timestamp_sec": 1.5
+        },
+        {
+          "frame_id": "f0007",
+          "timestamp_sec": 1.8
+        },
+        {
+          "frame_id": "f0008",
+          "timestamp_sec": 2.0
+        },
+        {
+          "frame_id": "f0009",
+          "timestamp_sec": 2.3
+        },
+        {
+          "frame_id": "f0010",
+          "timestamp_sec": 2.5
+        },
+        {
+          "frame_id": "f0011",
+          "timestamp_sec": 2.8
+        },
+        {
+          "frame_id": "f0012",
+          "timestamp_sec": 3.0
+        },
+        {
+          "frame_id": "f0013",
+          "timestamp_sec": 3.3
+        },
+        {
+          "frame_id": "f0014",
+          "timestamp_sec": 3.5
+        },
+        {
+          "frame_id": "f0015",
+          "timestamp_sec": 3.8
+        },
+        {
+          "frame_id": "f0016",
+          "timestamp_sec": 4.0
+        },
+        {
+          "frame_id": "f0017",
+          "timestamp_sec": 4.3
+        },
+        {
+          "frame_id": "f0018",
+          "timestamp_sec": 4.5
+        },
+        {
+          "frame_id": "f0019",
+          "timestamp_sec": 4.8
+        },
+        {
+          "frame_id": "f0020",
+          "timestamp_sec": 5.0
+        },
+        {
+          "frame_id": "f0021",
+          "timestamp_sec": 5.3
+        },
+        {
+          "frame_id": "f0022",
+          "timestamp_sec": 5.5
+        },
+        {
+          "frame_id": "f0023",
+          "timestamp_sec": 5.8
+        },
+        {
+          "frame_id": "f0024",
+          "timestamp_sec": 6.0
+        },
+        {
+          "frame_id": "f0025",
+          "timestamp_sec": 6.3
+        },
+        {
+          "frame_id": "f0026",
+          "timestamp_sec": 6.5
+        },
+        {
+          "frame_id": "f0027",
+          "timestamp_sec": 6.8
+        },
+        {
+          "frame_id": "f0028",
+          "timestamp_sec": 7.0
+        },
+        {
+          "frame_id": "f0029",
+          "timestamp_sec": 7.3
+        },
+        {
+          "frame_id": "f0030",
+          "timestamp_sec": 7.5
+        },
+        {
+          "frame_id": "f0031",
+          "timestamp_sec": 7.8
+        },
+        {
+          "frame_id": "f0032",
+          "timestamp_sec": 8.0
+        },
+        {
+          "frame_id": "f0033",
+          "timestamp_sec": 8.3
+        },
+        {
+          "frame_id": "f0034",
+          "timestamp_sec": 8.5
+        },
+        {
+          "frame_id": "f0035",
+          "timestamp_sec": 8.8
+        },
+        {
+          "frame_id": "f0036",
+          "timestamp_sec": 9.0
+        },
+        {
+          "frame_id": "f0037",
+          "timestamp_sec": 9.3
+        },
+        {
+          "frame_id": "f0038",
+          "timestamp_sec": 9.5
+        },
+        {
+          "frame_id": "f0039",
+          "timestamp_sec": 9.8
+        }
+      ],
+      "recorded_at_utc": "2026-10-18T00:31:32.617380+00:00",
+      "gemini_sides": [
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "on",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "on",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "on",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right"
+      ],
+      "gemini_event_times_sec": [
+        2.0,
+        8.0
+      ],
+      "reference_event_times_sec": [
+        2.0,
+        8.0
+      ],
+      "recorded_hybrid_event_times_sec": [
+        2.0,
+        8.0
+      ]
+    },
+    {
+      "id": "early",
+      "title_ru": "Раннее событие",
+      "title_en": "Early crossing",
+      "video_url": "/synthetic-demo/early.mp4",
+      "duration_sec": 6,
+      "video_sha256": "8e1e02727f0aa0be3d6a3a9484f5cd98c815aee107c1dbc6b18db089f3730730",
+      "frames": [
+        {
+          "frame_id": "f0000",
+          "timestamp_sec": 0.0
+        },
+        {
+          "frame_id": "f0001",
+          "timestamp_sec": 0.3
+        },
+        {
+          "frame_id": "f0002",
+          "timestamp_sec": 0.5
+        },
+        {
+          "frame_id": "f0003",
+          "timestamp_sec": 0.8
+        },
+        {
+          "frame_id": "f0004",
+          "timestamp_sec": 1.0
+        },
+        {
+          "frame_id": "f0005",
+          "timestamp_sec": 1.3
+        },
+        {
+          "frame_id": "f0006",
+          "timestamp_sec": 1.5
+        },
+        {
+          "frame_id": "f0007",
+          "timestamp_sec": 1.8
+        },
+        {
+          "frame_id": "f0008",
+          "timestamp_sec": 2.0
+        },
+        {
+          "frame_id": "f0009",
+          "timestamp_sec": 2.3
+        },
+        {
+          "frame_id": "f0010",
+          "timestamp_sec": 2.5
+        },
+        {
+          "frame_id": "f0011",
+          "timestamp_sec": 2.8
+        },
+        {
+          "frame_id": "f0012",
+          "timestamp_sec": 3.0
+        },
+        {
+          "frame_id": "f0013",
+          "timestamp_sec": 3.3
+        },
+        {
+          "frame_id": "f0014",
+          "timestamp_sec": 3.5
+        },
+        {
+          "frame_id": "f0015",
+          "timestamp_sec": 3.8
+        },
+        {
+          "frame_id": "f0016",
+          "timestamp_sec": 4.0
+        },
+        {
+          "frame_id": "f0017",
+          "timestamp_sec": 4.3
+        },
+        {
+          "frame_id": "f0018",
+          "timestamp_sec": 4.5
+        },
+        {
+          "frame_id": "f0019",
+          "timestamp_sec": 4.8
+        },
+        {
+          "frame_id": "f0020",
+          "timestamp_sec": 5.0
+        },
+        {
+          "frame_id": "f0021",
+          "timestamp_sec": 5.3
+        },
+        {
+          "frame_id": "f0022",
+          "timestamp_sec": 5.5
+        },
+        {
+          "frame_id": "f0023",
+          "timestamp_sec": 5.8
+        }
+      ],
+      "recorded_at_utc": "2026-10-18T00:32:12.070568+00:00",
+      "gemini_sides": [
+        "left",
+        "left",
+        "left",
+        "on",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right"
+      ],
+      "gemini_event_times_sec": [
+        0.8
+      ],
+      "reference_event_times_sec": [
+        1.0
+      ],
+      "recorded_hybrid_event_times_sec": [
+        1.0
+      ]
+    },
+    {
+      "id": "late",
+      "title_ru": "Позднее событие",
+      "title_en": "Late crossing",
+      "video_url": "/synthetic-demo/late.mp4",
+      "duration_sec": 6,
+      "video_sha256": "ae3f34d4744699596c7fdcca76fbe8d2008c476107a92e9706a4e504825d343e",
+      "frames": [
+        {
+          "frame_id": "f0000",
+          "timestamp_sec": 0.0
+        },
+        {
+          "frame_id": "f0001",
+          "timestamp_sec": 0.3
+        },
+        {
+          "frame_id": "f0002",
+          "timestamp_sec": 0.5
+        },
+        {
+          "frame_id": "f0003",
+          "timestamp_sec": 0.8
+        },
+        {
+          "frame_id": "f0004",
+          "timestamp_sec": 1.0
+        },
+        {
+          "frame_id": "f0005",
+          "timestamp_sec": 1.3
+        },
+        {
+          "frame_id": "f0006",
+          "timestamp_sec": 1.5
+        },
+        {
+          "frame_id": "f0007",
+          "timestamp_sec": 1.8
+        },
+        {
+          "frame_id": "f0008",
+          "timestamp_sec": 2.0
+        },
+        {
+          "frame_id": "f0009",
+          "timestamp_sec": 2.3
+        },
+        {
+          "frame_id": "f0010",
+          "timestamp_sec": 2.5
+        },
+        {
+          "frame_id": "f0011",
+          "timestamp_sec": 2.8
+        },
+        {
+          "frame_id": "f0012",
+          "timestamp_sec": 3.0
+        },
+        {
+          "frame_id": "f0013",
+          "timestamp_sec": 3.3
+        },
+        {
+          "frame_id": "f0014",
+          "timestamp_sec": 3.5
+        },
+        {
+          "frame_id": "f0015",
+          "timestamp_sec": 3.8
+        },
+        {
+          "frame_id": "f0016",
+          "timestamp_sec": 4.0
+        },
+        {
+          "frame_id": "f0017",
+          "timestamp_sec": 4.3
+        },
+        {
+          "frame_id": "f0018",
+          "timestamp_sec": 4.5
+        },
+        {
+          "frame_id": "f0019",
+          "timestamp_sec": 4.8
+        },
+        {
+          "frame_id": "f0020",
+          "timestamp_sec": 5.0
+        },
+        {
+          "frame_id": "f0021",
+          "timestamp_sec": 5.3
+        },
+        {
+          "frame_id": "f0022",
+          "timestamp_sec": 5.5
+        },
+        {
+          "frame_id": "f0023",
+          "timestamp_sec": 5.8
+        }
+      ],
+      "recorded_at_utc": "2026-10-18T00:32:12.070568+00:00",
+      "gemini_sides": [
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "on",
+        "right",
+        "right",
+        "right"
+      ],
+      "gemini_event_times_sec": [
+        5.0
+      ],
+      "reference_event_times_sec": [
+        5.0
+      ],
+      "recorded_hybrid_event_times_sec": [
+        5.0
+      ]
+    },
+    {
+      "id": "near_miss",
+      "title_ru": "Движение без пересечения",
+      "title_en": "Movement without crossing",
+      "video_url": "/synthetic-demo/near_miss.mp4",
+      "duration_sec": 6,
+      "video_sha256": "5d72f2b239e43c751085690053cd1aa757ab51021c9202a9139df29e0ebe9404",
+      "frames": [
+        {
+          "frame_id": "f0000",
+          "timestamp_sec": 0.0
+        },
+        {
+          "frame_id": "f0001",
+          "timestamp_sec": 0.3
+        },
+        {
+          "frame_id": "f0002",
+          "timestamp_sec": 0.5
+        },
+        {
+          "frame_id": "f0003",
+          "timestamp_sec": 0.8
+        },
+        {
+          "frame_id": "f0004",
+          "timestamp_sec": 1.0
+        },
+        {
+          "frame_id": "f0005",
+          "timestamp_sec": 1.3
+        },
+        {
+          "frame_id": "f0006",
+          "timestamp_sec": 1.5
+        },
+        {
+          "frame_id": "f0007",
+          "timestamp_sec": 1.8
+        },
+        {
+          "frame_id": "f0008",
+          "timestamp_sec": 2.0
+        },
+        {
+          "frame_id": "f0009",
+          "timestamp_sec": 2.3
+        },
+        {
+          "frame_id": "f0010",
+          "timestamp_sec": 2.5
+        },
+        {
+          "frame_id": "f0011",
+          "timestamp_sec": 2.8
+        },
+        {
+          "frame_id": "f0012",
+          "timestamp_sec": 3.0
+        },
+        {
+          "frame_id": "f0013",
+          "timestamp_sec": 3.3
+        },
+        {
+          "frame_id": "f0014",
+          "timestamp_sec": 3.5
+        },
+        {
+          "frame_id": "f0015",
+          "timestamp_sec": 3.8
+        },
+        {
+          "frame_id": "f0016",
+          "timestamp_sec": 4.0
+        },
+        {
+          "frame_id": "f0017",
+          "timestamp_sec": 4.3
+        },
+        {
+          "frame_id": "f0018",
+          "timestamp_sec": 4.5
+        },
+        {
+          "frame_id": "f0019",
+          "timestamp_sec": 4.8
+        },
+        {
+          "frame_id": "f0020",
+          "timestamp_sec": 5.0
+        },
+        {
+          "frame_id": "f0021",
+          "timestamp_sec": 5.3
+        },
+        {
+          "frame_id": "f0022",
+          "timestamp_sec": 5.5
+        },
+        {
+          "frame_id": "f0023",
+          "timestamp_sec": 5.8
+        }
+      ],
+      "recorded_at_utc": "2026-10-18T00:32:12.070568+00:00",
+      "gemini_sides": [
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left"
+      ],
+      "gemini_event_times_sec": [],
+      "reference_event_times_sec": [],
+      "recorded_hybrid_event_times_sec": []
+    },
+    {
+      "id": "stationary_overlap",
+      "title_ru": "Неподвижный объект у линии",
+      "title_en": "Stationary object near the line",
+      "video_url": "/synthetic-demo/stationary_overlap.mp4",
+      "duration_sec": 6,
+      "video_sha256": "b9b1f8f5eac7180ae936af01bf85942177f4720c0d0fe744cfb494406bc45859",
+      "frames": [
+        {
+          "frame_id": "f0000",
+          "timestamp_sec": 0.0
+        },
+        {
+          "frame_id": "f0001",
+          "timestamp_sec": 0.3
+        },
+        {
+          "frame_id": "f0002",
+          "timestamp_sec": 0.5
+        },
+        {
+          "frame_id": "f0003",
+          "timestamp_sec": 0.8
+        },
+        {
+          "frame_id": "f0004",
+          "timestamp_sec": 1.0
+        },
+        {
+          "frame_id": "f0005",
+          "timestamp_sec": 1.3
+        },
+        {
+          "frame_id": "f0006",
+          "timestamp_sec": 1.5
+        },
+        {
+          "frame_id": "f0007",
+          "timestamp_sec": 1.8
+        },
+        {
+          "frame_id": "f0008",
+          "timestamp_sec": 2.0
+        },
+        {
+          "frame_id": "f0009",
+          "timestamp_sec": 2.3
+        },
+        {
+          "frame_id": "f0010",
+          "timestamp_sec": 2.5
+        },
+        {
+          "frame_id": "f0011",
+          "timestamp_sec": 2.8
+        },
+        {
+          "frame_id": "f0012",
+          "timestamp_sec": 3.0
+        },
+        {
+          "frame_id": "f0013",
+          "timestamp_sec": 3.3
+        },
+        {
+          "frame_id": "f0014",
+          "timestamp_sec": 3.5
+        },
+        {
+          "frame_id": "f0015",
+          "timestamp_sec": 3.8
+        },
+        {
+          "frame_id": "f0016",
+          "timestamp_sec": 4.0
+        },
+        {
+          "frame_id": "f0017",
+          "timestamp_sec": 4.3
+        },
+        {
+          "frame_id": "f0018",
+          "timestamp_sec": 4.5
+        },
+        {
+          "frame_id": "f0019",
+          "timestamp_sec": 4.8
+        },
+        {
+          "frame_id": "f0020",
+          "timestamp_sec": 5.0
+        },
+        {
+          "frame_id": "f0021",
+          "timestamp_sec": 5.3
+        },
+        {
+          "frame_id": "f0022",
+          "timestamp_sec": 5.5
+        },
+        {
+          "frame_id": "f0023",
+          "timestamp_sec": 5.8
+        }
+      ],
+      "recorded_at_utc": "2026-10-18T00:32:12.070568+00:00",
+      "gemini_sides": [
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on",
+        "on"
+      ],
+      "gemini_event_times_sec": [],
+      "reference_event_times_sec": [],
+      "recorded_hybrid_event_times_sec": []
+    }
+  ]
+}

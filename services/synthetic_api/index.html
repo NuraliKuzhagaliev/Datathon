@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CashProof · Cloud laboratory</title><link rel="stylesheet" href="/console.css"><script defer src="/console.js"></script></head>
+<body><main><header><a href="https://cashproof-web.vercel.app/#synthetic-lab">CashProof ↗</a><span>RENDER · SYNTHETIC ONLY</span></header>
+<h1>Облачная лаборатория</h1><p class="intro">Сервер работает без вашего ПК. Исследуем направление движения и время пересечения линии на восьми синтетических видео.</p>
+<section class="notice"><strong>Это эксперимент с геометрией, а не поиск банковских нарушений.</strong><p>Загрузка своих видео отключена. Ответ Gemini показан отдельно от независимого измерения каждого выбранного кадра. Правильный результат геометрии не означает, что Gemini распознал событие.</p></section>
+<p id="health" role="status">Проверяем сервер…</p>
+<section class="work"><div><label for="scenario">Синтетический сценарий</label><select id="scenario"></select><video id="video" controls preload="metadata"></video></div>
+<div><label for="key">Ключ облачной лаборатории</label><input id="key" type="password" autocomplete="off" placeholder="Сохраняется только в памяти страницы">
+<button id="recorded" type="button">Записанный Gemini + расчёт на сервере</button><p class="hint">0 новых запросов к Gemini. Сервер заново обрабатывает кадры и вычисляет время.</p>
+<button id="live" type="button" disabled>Новый запрос к Gemini Free Tier</button><p class="hint">Только при действующей проверке Free Tier. Без повторов и платного переключения.</p>
+<p id="status" role="status" aria-live="polite">Выберите режим проверки.</p><button id="download" type="button" disabled>Скачать JSON результата</button></div></section>
+<section><h2>Результат</h2><p id="summary">Пока нет выполненного задания.</p><details><summary>Исходный ответ и расчёт</summary><pre id="result"></pre></details></section>
+<footer>Render Free может запускаться около минуты после простоя. Результаты временные: скачайте JSON до перезапуска сервиса. Этот адрес пока не является конкурсным API.</footer>
+</main></body></html>

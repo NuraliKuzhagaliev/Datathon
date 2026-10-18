@@ -1,4 +1,4 @@
-"""Provision the pinned official 4B experiment; no private input is read."""
+"""Provision allowlisted, pinned official experiments; no private input is read."""
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -10,24 +10,32 @@ import sys
 import requests
 from huggingface_hub import HfApi
 
-REPO = "Qwen/Qwen3-VL-4B-Instruct"
-REVISION = "ebb281ec70b05090aa6165b016eac8ec08e71b17"
+CANDIDATES = {
+    "Qwen/Qwen3-VL-4B-Instruct": "ebb281ec70b05090aa6165b016eac8ec08e71b17",
+    "Qwen/Qwen3.5-4B": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+}
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--destination", type=Path, required=True)
+    parser.add_argument(
+        "--repo", choices=CANDIDATES, default="Qwen/Qwen3-VL-4B-Instruct"
+    )
     args = parser.parse_args()
+    repo = args.repo
+    revision = CANDIDATES[repo]
     args.destination.mkdir(parents=True, exist_ok=True)
-    info = HfApi().model_info(REPO, revision=REVISION, files_metadata=True)
-    if info.sha != REVISION or info.card_data.get("license") != "apache-2.0":
+    info = HfApi(token=False).model_info(repo, revision=revision, files_metadata=True)
+    if info.sha != revision or info.card_data.get("license") != "apache-2.0":
         raise ValueError("Unexpected official checkpoint metadata")
 
     def provision(file):
         target = args.destination / file.rfilename
         if not target.resolve().is_relative_to(args.destination.resolve()):
             raise ValueError("Unsafe artifact path")
-        url = f"https://huggingface.co/{REPO}/resolve/{REVISION}/{file.rfilename}"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        url = f"https://huggingface.co/{repo}/resolve/{revision}/{file.rfilename}"
         if file.lfs and not target.exists():
             subprocess.run(
                 [
@@ -74,10 +82,10 @@ def main():
     with ThreadPoolExecutor(max_workers=2) as pool:
         files = list(pool.map(provision, info.siblings))
     manifest = {
-        "repo_id": REPO,
-        "revision": REVISION,
+        "repo_id": repo,
+        "revision": revision,
         "license": "Apache-2.0",
-        "source_url": f"https://huggingface.co/{REPO}/tree/{REVISION}",
+        "source_url": f"https://huggingface.co/{repo}/tree/{revision}",
         "files": files,
     }
     (args.destination / "cashproof-manifest.json").write_text(
@@ -87,7 +95,7 @@ def main():
         json.dumps(
             {
                 "candidate_provisioned": True,
-                "revision": REVISION,
+                "revision": revision,
                 "files": len(files),
                 "bytes": sum(f["size"] for f in files),
             }

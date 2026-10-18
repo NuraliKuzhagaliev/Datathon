@@ -2,6 +2,12 @@
 
 Local video review for possible cashier-procedure violations, with source-linked evidence and a separate human decision.
 
+**New synthetic cloud backend:** [Render laboratory](https://cashproof-synthetic-api.onrender.com) runs independently of the owner's PC. Only the eight bundled generated videos are accepted. It separates raw Gemini output from an independent source-frame pixel measurement; arbitrary video uploads and jury analysis are disabled. Render Free, no paid resources, and fresh key-bound Free Tier verification are required for live Gemini calls; recorded replay remains available after that verification expires. Results are ephemeral. This is not a competition-ready bank detector. See [deployment and limits](docs/backend/render-synthetic-api.md). The historical real-video model/API/tunnel below remain stopped.
+
+**Synthetic Gemini lab:** open `/#synthetic-lab` or select **Gemini demo** in the navigation. Eight regenerated public videos include recorded Gemini 2.5 Flash observations, source timestamps, a working browser-side pixel check and downloadable JSON reports. No key, backend or new cloud request is required. These are geometric demonstrations, not bank-violation detection. The full saved-response replay passed 8/8; the latest fresh API run completed 3/8 before the free daily quota was exhausted. See [implementation and verification](docs/backend/synthetic-web-demo.md).
+
+**Primary-site cloud mode:** [open the laboratory](https://cashproof-web.vercel.app/#synthetic-lab), choose **Облачный анализ** and enter the separate laboratory key from the ignored `runtime-data/render-synthetic/credentials.json`. This uses Render through the site's `/api/synthetic/*` route and shows raw model timecodes as the primary result. Independent geometry is a separate diagnostic. The **Записанные примеры** tab retains the previous browser-only mode; its historical scores describe recorded Gemini 2.5 responses, not current live inference. The Gemini 3.1 Flash Lite baseline completed a new eight-case synthetic run with 7/8 correct raw event lists; reference times were used only after inference for scoring.
+
 **Status at common audit, 18 October 2026:** backend 0.3.2 and the React/Electron frontend are integrated on contract 1.0.0. The new private portable bundle and full Windows package passed integrity and real-model execution checks. The local API is restored from that bundle with original credentials. Public API routing still awaits publication of the prepared replacement rewrites; the updated static site is published and all 11 public files match the checked local build. Full development evaluation completed: production recall 0/15; Qwen3.5-4B is rejected with 12/28 technical failures and no successful positive detections. Useful recognition, independent access, disconnected desktop qualification and redistribution review remain open. See the [whole-project status](docs/integration/PROJECT_STATUS.md), [acceptance matrix](docs/frontend/INTEGRATION_CHECKLIST.md) and [executed evidence](docs/integration/verification.md).
 
 ## Backend setup
@@ -73,12 +79,32 @@ Read [AGENTS.md](AGENTS.md), the [shared contract](forte_handoff/SHARED_CONTRACT
 
 The [architecture](docs/backend/architecture.md), [integration evidence](docs/integration/verification.md), [desktop launch schema](packages/contracts/desktop-launch.schema.json) and `tools/build_bundle.py` cover the release handoff. The bundle builder refuses missing prerequisites. A source folder, mock result or assembled bundle alone is not offline proof.
 
-The current public route is Vercel CDN → Cloudflare Tunnel → local inference. The human approved real-video transport after disclosure; organizer approval is not recorded. Historical synthetic and real uploads passed through the earlier public route from this host; that upstream is now dead and replacement rewrites are not yet published. An independent client/network and continuous jury-window availability remain unverified. The temporary upstream changes on restart; update both project routing rules before use. This route is an integration service, not a competition-readiness claim.
+The current synthetic laboratory runs at https://cashproof-web.vercel.app/#synthetic-lab
+through Vercel `/api/synthetic/*` to Render Free and Gemini Free Tier. No local
+PC, GPU, API process or tunnel is needed. The former Cloudflare project routes
+are disabled. Arbitrary uploads and the real-video jury detector remain disabled;
+this cloud laboratory is not a competition-qualified banking detector.
 
 CashProof is a working title and does not imply ForteBank endorsement.
 
-## Published static build, 18 October 2026
+## Cloud synthetic release, 18 October 2026
 
-The existing production alias now serves the Git build from a1fa9d2a44a3c5c5953302460a8d75d6da09953e, deployment82s7f2A3sLFQg8eXEugSp9UG4zaR (Ready,18s). All11 public files (736,036bytes) were fetched anonymously and matched the corrected Windows build byte-for-byte; security headers and absence of actual credential values were checked. Public login rendered without accessing private cases. Explicit LF attributes preserve identical static/license bytes on Windows and Linux. The earlier prepared Drop directory is retained as historical and is not the final public fingerprint.
+The main site is connected to `cashproof-synthetic-api.onrender.com` through an
+exact synthetic namespace rewrite. Use the separate laboratory key; Gemini
+credentials stay on Render. Recorded results and fresh Gemini responses are
+explicitly distinguished. The original real-video login is a separate workflow.
 
-The owner prioritizes an accurate single service. API/health are two technical paths of that one service, not competing models. The latest response did not approve routing Publish; both rewrites remain Draft while recognition quality is unresolved. The local portable API/tunnel are ready, but current public API readiness is false. No claim of universally correct diagnosis is made.
+The same eight synthetic development clips were compared across model/input
+variants. Gemini 3.8 Flash with a visible stationary reference passed **8/8 target
+event lists and timestamps** (0.5 s tolerance; TP5/TN3/FP0/FN0). Its first pass
+omitted one auxiliary reverse crossing, so the all-direction score was **7/8**.
+A bounded second model review checks returns between model-reported events;
+its targeted verification is reported separately. These eight geometric clips
+do not establish banking accuracy or generalization. See the detailed
+[model comparison](docs/backend/gemini-cloud-comparison.md) and
+[Render operation and limits](docs/backend/render-synthetic-api.md).
+
+Only explicitly verified $0 Free Tier configuration is allowed. Project and
+model-price receipts expire after 30 minutes; generation then fails closed.
+No paid fallback or automatic provider retries are enabled. Render Free can
+sleep and lose in-memory jobs; download results before a restart.
