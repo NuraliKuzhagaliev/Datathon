@@ -16,6 +16,7 @@ from cashproof.config import force_offline
 from cashproof.inference.model import LocalQwen
 from cashproof.inference.pipeline import Pipeline
 from cashproof.rules import Registry
+from cashproof.errors import ProcessingError
 
 
 def ratio(a, b):
@@ -29,6 +30,29 @@ def main():
     p.add_argument("--rules", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
     p.add_argument("--verify-grounding", action="store_true")
+    p.add_argument("--experimental-compact", action="store_true")
+    p.add_argument("--native-video", action="store_true")
+    p.add_argument("--experimental-fact-screen", action="store_true")
+    p.add_argument("--experimental-trigger-screen", action="store_true")
+    p.add_argument("--experimental-atomic-verifier", action="store_true")
+    p.add_argument("--experimental-joint-screen", action="store_true")
+    p.add_argument("--experimental-screen-fps", type=int, choices=[1, 2, 4], default=1)
+    p.add_argument(
+        "--experimental-screen-views", choices=["full", "paired"], default="full"
+    )
+    p.add_argument("--experimental-gguf-runtime", type=Path)
+    p.add_argument("--gguf-provision-receipt", type=Path)
+    p.add_argument("--gguf-conversion-receipt", type=Path)
+    p.add_argument("--experimental-precision", choices=["nf4", "bf16"], default="nf4")
+    p.add_argument(
+        "--experimental-screen-pixels",
+        type=int,
+        choices=[65536, 131072, 262144, 393472],
+        default=65536,
+    )
+    p.add_argument(
+        "--screen-wording", choices=["possible", "observed"], default="possible"
+    )
     p.add_argument("--max-candidates", type=int, default=8)
     p.add_argument("--split", choices=["development", "validation"], required=True)
     p.add_argument(
@@ -47,7 +71,54 @@ def main():
         help="Required for validation: completed development aggregate with the exact frozen configuration",
     )
     a = p.parse_args()
-    if a.experimental_nf4 and a.split != "development":
+    if a.experimental_fact_screen:
+        a.experimental_compact = True
+    if a.gguf_conversion_receipt and not a.experimental_gguf_runtime:
+        raise ValueError(
+            "Converted receipt requires the explicit local GGUF experiment"
+        )
+    if a.experimental_trigger_screen and not a.experimental_fact_screen:
+        raise ValueError(
+            "Visual trigger proposals require explicit fact-screen experiment"
+        )
+    if a.experimental_atomic_verifier and not a.experimental_trigger_screen:
+        raise ValueError(
+            "Independent verifier requires the explicit trigger experiment"
+        )
+    if a.experimental_gguf_runtime and (
+        not a.experimental_fact_screen or a.native_video or not a.gguf_provision_receipt
+    ):
+        raise ValueError(
+            "GGUF requires fact screening, ordered images and pinned receipt"
+        )
+    if a.experimental_joint_screen and (
+        not a.experimental_atomic_verifier or not a.experimental_gguf_runtime
+    ):
+        raise ValueError(
+            "Joint screen requires explicit GGUF and independent final verifier"
+        )
+    if a.experimental_screen_views != "full":
+        raise ValueError(
+            "Paired temporal views failed direction controls; unavailable for private evaluation"
+        )
+    if a.experimental_screen_fps != 1 and not a.experimental_joint_screen:
+        raise ValueError(
+            "Density comparison requires the bounded joint-screen experiment"
+        )
+    if (
+        a.experimental_precision != "nf4" or a.experimental_screen_pixels != 65536
+    ) and not a.experimental_fact_screen:
+        raise ValueError(
+            "Precision/pixel comparison requires explicit fact-screen experiment"
+        )
+    experimental = a.experimental_nf4 or a.experimental_fact_screen
+    if a.experimental_compact and not experimental:
+        raise ValueError("Compact experiment requires the isolated NF4 adapter")
+    if a.native_video and not a.experimental_compact:
+        raise ValueError("Native video requires the isolated compact experiment")
+    if a.screen_wording != "possible" and not a.experimental_compact:
+        raise ValueError("Screening wording requires the isolated compact experiment")
+    if experimental and a.split != "development":
         raise ValueError("Experimental adapter cannot open validation")
     if a.split == "validation" and not a.freeze_from:
         raise ValueError(
@@ -79,25 +150,149 @@ def main():
     if any(len({r["label"] for r in rs}) > 1 for rs in by_hash.values()):
         raise ValueError("Conflicting binary labels")
     force_offline()
-    if a.experimental_nf4:
+    if a.experimental_gguf_runtime:
+        from gguf_model import GGUFModel
+
+        def make_gguf(private_dir):
+            instance = GGUFModel(
+                a.model_dir,
+                a.experimental_gguf_runtime,
+                a.gguf_provision_receipt,
+                private_dir,
+                screen_pixels=a.experimental_screen_pixels,
+                conversion_receipt=a.gguf_conversion_receipt,
+                image_max_tokens=512 if a.experimental_joint_screen else 256,
+                context_size=(12288 if a.experimental_screen_fps > 1 else 8192)
+                if a.experimental_joint_screen
+                else 6144,
+            )
+            if a.experimental_joint_screen:
+                instance.runtime_configuration["screening_sample_fps"] = (
+                    a.experimental_screen_fps
+                )
+            return instance
+
+        model = make_gguf(a.output / "private-runtime")
+    elif experimental:
         from candidate_model import CandidateModel
 
-        model = CandidateModel(a.model_dir)
+        model = CandidateModel(
+            a.model_dir,
+            compact=a.experimental_compact,
+            native_video=a.native_video,
+            precision=a.experimental_precision,
+        )
+        if a.experimental_fact_screen:
+            model.runtime_configuration.update(
+                screening_max_pixels=a.experimental_screen_pixels,
+                verification_max_pixels=min(262144, a.experimental_screen_pixels * 2),
+                image_max_edge=848,
+            )
+            model.manifest["experimental_recipe"].update(model.runtime_configuration)
     else:
         model = LocalQwen(a.model_dir)
     if a.verify_grounding:
+        if experimental:
+            grammar_check = getattr(model, "verify_grammar", None)
+            if grammar_check:
+                grammar_result = grammar_check(a.output / "synthetic-grammar-controls")
+            else:
+                from grammar_controls import verify as verify_grammar
+
+                grammar_result = verify_grammar(
+                    model, a.output / "synthetic-grammar-controls"
+                )
+            if not grammar_result["passed"]:
+                raise RuntimeError("Boolean grammar failed before private evaluation")
         from visual_grounding import verify
 
-        if not verify(model, a.output / "synthetic-grounding")[
-            "passed_number_color_controls"
-        ]:
+        visual_controls = verify(model, a.output / "synthetic-grounding")
+        if not visual_controls["passed_number_color_controls"]:
             raise RuntimeError(
                 "Synthetic visual grounding failed before private evaluation"
             )
+        if (
+            a.experimental_trigger_screen
+            and visual_controls["figure_count_correct"] != visual_controls["cases"]
+        ):
+            raise RuntimeError(
+                "Synthetic person-count recovery control failed before private evaluation"
+            )
+        if a.native_video or a.experimental_fact_screen:
+            from temporal_grounding import verify as verify_temporal
+
+            if not verify_temporal(model, a.output / "synthetic-temporal-grounding")[
+                "passed"
+            ]:
+                raise RuntimeError(
+                    "Synthetic temporal grounding failed before private evaluation"
+                )
+    if hasattr(model, "technical_calls"):
+        model.technical_calls.clear()
     registry = Registry(a.rules)
     if not 1 <= a.max_candidates <= 32:
         raise ValueError("Candidate budget must be between 1 and 32")
-    pipeline = Pipeline(model, registry, a.max_candidates)
+    if a.experimental_fact_screen:
+        from fact_pipeline import FactPipeline, TriggerFactPipeline
+
+        pipeline_class = (
+            TriggerFactPipeline if a.experimental_trigger_screen else FactPipeline
+        )
+        if a.experimental_atomic_verifier:
+            from atomic_verifier import AtomicFactPipeline
+
+            pipeline_class = AtomicFactPipeline
+        if a.experimental_joint_screen:
+            from joint_screen import JointScreenPipeline
+
+            pipeline_class = JointScreenPipeline
+            pipeline = pipeline_class(model, registry, a.max_candidates)
+        else:
+            pipeline = pipeline_class(model, registry, a.max_candidates)
+    elif a.experimental_compact:
+        from compact_pipeline import CompactPipeline
+
+        pipeline = CompactPipeline(
+            model, registry, a.max_candidates, screen_wording=a.screen_wording
+        )
+    else:
+        pipeline = Pipeline(model, registry, a.max_candidates)
+    if a.experimental_compact and a.verify_grounding:
+        from screening_controls import verify as verify_screening
+
+        controls = verify_screening(
+            model,
+            registry,
+            a.output / "synthetic-screening-controls",
+            wordings=[a.screen_wording],
+            pipeline_class=type(pipeline) if a.experimental_fact_screen else None,
+        )
+        if not all(c["passes_negative_control"] for c in controls):
+            raise RuntimeError(
+                "Synthetic nonhuman negative control failed before private evaluation"
+            )
+        if a.experimental_fact_screen:
+            from fact_screening_controls import verify as verify_facts
+
+            if not verify_facts(
+                model, a.output / "synthetic-fact-direction", type(pipeline)
+            )["passed"]:
+                raise RuntimeError(
+                    "Synthetic positive/negative fact screen failed before private evaluation"
+                )
+        if a.experimental_gguf_runtime:
+            from source_time_controls import verify as verify_source_time
+
+            if not verify_source_time(
+                model,
+                a.output / "synthetic-source-time",
+                type(pipeline),
+                extended=a.experimental_joint_screen,
+            )["passed"]:
+                raise RuntimeError(
+                    "Generated end-to-end source-time control failed before private evaluation"
+                )
+        model.technical_calls.clear()
     if a.freeze_from:
         frozen = json.loads(a.freeze_from.read_text(encoding="utf-8"))
         if frozen.get("partial_evaluation") or frozen.get("split") != "development":
@@ -118,12 +313,17 @@ def main():
     time_errors = []
     ambiguous = 0
     failure_codes = defaultdict(int)
+    failure_types = defaultdict(int)
     failure_latency = []
+    runtime_restarts = 0
     evidence_frames = 0
     selected = [rs for rs in by_hash.values() if rs[0]["split"] == a.split]
     if a.max_videos:
         selected = selected[: a.max_videos]
     selected_hashes = {rs[0]["sha256"] for rs in selected}
+    torch_backend = getattr(model, "torch", None)
+    if torch_backend is not None:
+        torch_backend.cuda.reset_peak_memory_stats()
     for digest, rs in by_hash.items():
         if digest not in selected_hashes:
             continue
@@ -132,6 +332,18 @@ def main():
         directory.mkdir()
         start = time.time()
         try:
+            if a.experimental_gguf_runtime and model.closed:
+                previous_model = model
+                runtime_restarts += 1
+                model = make_gguf(
+                    a.output / f"private-runtime-restart-{runtime_restarts}"
+                )
+                if model.manifest != previous_model.manifest:
+                    model.close()
+                    raise ValueError("Restarted experiment changed its pinned recipe")
+                model.runtime_configuration = dict(previous_model.runtime_configuration)
+                model.technical_calls = previous_model.technical_calls
+                pipeline.model = model
             result, timeline = pipeline.run(
                 Path(rs[0]["path"]),
                 directory,
@@ -140,6 +352,11 @@ def main():
                 lambda **kwargs: None,
             )
             elapsed = time.time() - start
+            if elapsed > 270:
+                raise ProcessingError(
+                    "DEADLINE_EXCEEDED",
+                    "Development result exceeded production watchdog budget",
+                )
             latencies.append(elapsed)
             (directory / "result.json").write_text(
                 json.dumps(result, ensure_ascii=False), encoding="utf-8"
@@ -166,16 +383,25 @@ def main():
                 )
         except Exception as error:
             failures += 1
+            failure_types[type(error).__name__] += 1
             failure_latency.append(time.time() - start)
-            oom = isinstance(error, model.torch.OutOfMemoryError)
+            oom = torch_backend is not None and isinstance(
+                error, torch_backend.OutOfMemoryError
+            )
             code = getattr(
                 error, "code", "RESOURCE_EXHAUSTED" if oom else "PROCESSING_FAILED"
             )
             if oom:
-                model.torch.cuda.empty_cache()
+                torch_backend.cuda.empty_cache()
             failure_codes[code] += 1
             (directory / "failure.json").write_text(
-                json.dumps({"technical_failure": True, "error_code": code}),
+                json.dumps(
+                    {
+                        "technical_failure": True,
+                        "error_code": code,
+                        "error_type": type(error).__name__,
+                    }
+                ),
                 encoding="utf-8",
             )
         print(
@@ -207,6 +433,8 @@ def main():
         "completed": completed,
         "failed": failures,
         "failure_codes": dict(failure_codes),
+        "failure_types": dict(failure_types),
+        "runtime_restarts": runtime_restarts,
         "failure_latency_sec": failure_latency,
         "positive_unique_denominator": sum(int(rs[0]["label"]) for rs in selected),
         "negative_unique_denominator": sum(1 - int(rs[0]["label"]) for rs in selected),
@@ -235,13 +463,54 @@ def main():
             "max": max(latencies) if latencies else None,
         },
         "type_accuracy": None,
+        "peak_vram_bytes": torch_backend.cuda.max_memory_allocated()
+        if torch_backend is not None
+        else None,
+        "vram_measurement": "PyTorch allocator"
+        if torch_backend is not None
+        else "Subprocess backend: peak not measured",
         "event_f1": None,
         "note": "Video labels provide neither event-type ground truth nor full event intervals. No generalization claim.",
     }
     (out / "aggregate.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    if hasattr(pipeline, "stage_counts"):
+        metrics["stage_counts"] = pipeline.stage_counts
+    if hasattr(model, "technical_calls"):
+        calls = model.technical_calls
+        (out / "technical-calls.json").write_text(
+            json.dumps(calls, indent=2), encoding="utf-8"
+        )
+        metrics["inference_calls"] = len(calls)
+        metrics["input_token_max"] = max(
+            (c.get("input_tokens", 0) for c in calls), default=0
+        )
+        metrics["input_budget_failures"] = sum(
+            c.get("input_budget_exceeded", False) for c in calls
+        )
+        metrics["native_video_calls"] = sum(c["native_video"] for c in calls)
+        (out / "aggregate.json").write_text(
+            json.dumps(metrics, indent=2), encoding="utf-8"
+        )
     summary = {key: value for key, value in metrics.items() if key != "configuration"}
     summary["configuration_sha256"] = pipeline.configuration["configuration_sha256"]
     print(json.dumps(summary))
+    if (
+        a.experimental_gguf_runtime
+        and a.verify_grounding
+        and not model.closed
+        and not a.experimental_joint_screen
+    ):
+        # Additional synthetic stress cases are measured after the frozen real
+        # cohort, so they cannot be used to tune this cohort's predictions.
+        model.technical_calls.clear()
+        verify_source_time(
+            model,
+            a.output / "synthetic-source-time-stress",
+            type(pipeline),
+            extended=True,
+        )
+    if hasattr(model, "close"):
+        model.close()
 
 
 if __name__ == "__main__":

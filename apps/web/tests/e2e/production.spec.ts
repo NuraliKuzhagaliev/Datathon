@@ -32,3 +32,36 @@ test('production rejects a synthetic response from a configured server', async (
   await expect(page.getByRole('alert')).toContainText('синтетический пример');
   await expect(page.getByRole('heading',{name:'Обнаружены признаки возможных нарушений'})).toHaveCount(0);
 });
+
+test('synthetic lab computes all eight recorded cases locally without cloud or jury API requests', async ({ page }) => {
+  const requests: string[] = [], errors: string[] = [];
+  page.on('request', request => requests.push(request.url()));
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/#synthetic-lab');
+  await expect(page.getByRole('heading', { name: 'От наблюдения к точному моменту' })).toBeVisible();
+  const cases = [
+    ['01 Старт рядом с линией', ['1.5 с']], ['02 Пересечение слева направо', ['3.0 с']],
+    ['03 Обратное направление', []], ['04 Повторные пересечения', ['2.0 с', '8.0 с']],
+    ['05 Раннее событие', ['1.0 с']], ['06 Позднее событие', ['5.0 с']],
+    ['07 Движение без пересечения', []], ['08 Неподвижный объект у линии', []],
+  ] as const;
+  for (const [name, times] of cases) {
+    await page.getByRole('button', { name, exact: true }).click();
+    await page.getByRole('button', { name: 'Проверить геометрию в браузере', exact: true }).click();
+    await expect(page.getByText('Проверка пройдена', { exact: false })).toBeVisible();
+    expect(await page.locator('.lab-local-result button').allTextContents()).toEqual([...times]);
+    if (name.startsWith('01')) {
+      const pending = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Скачать отчёт' }).click();
+      const download = await pending;
+      const report = JSON.parse(readFileSync((await download.path())!, 'utf8'));
+      expect(report.raw_gemini_event_times_sec).toEqual([]);
+      expect(report.browser_event_times_sec).toEqual([1.5]);
+      expect(report.fresh_cloud_requests).toBe(0);
+    }
+  }
+  await page.getByRole('button', { name: 'English', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'From observation to an exact moment' })).toBeVisible();
+  expect(requests.filter(url => !url.startsWith('http://127.0.0.1:4173/') || url.includes('/api/'))).toEqual([]);
+  expect(errors).toEqual([]);
+});

@@ -146,6 +146,8 @@ def decode_timeline(path: Path, deadline: float):
 
 
 def sample_indices(timeline: Timeline, start=0.0, end=None, fps=1.0):
+    if not math.isfinite(fps) or fps <= 0:
+        raise ValueError("Sampling density must be finite and positive")
     end = timeline.duration if end is None else min(end, timeline.duration)
     indices, t = set(), start
     while t < end:
