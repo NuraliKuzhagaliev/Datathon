@@ -1,0 +1,2 @@
+# Source hashes cover exact retrieved bytes on every checkout platform.
+sources/** -text -diff

@@ -33,3 +33,8 @@ forte_handoff/audit/decode_results.json
 forte_handoff/audit/validation_report.json
 forte_handoff/audit/audit_dataset.py
 forte_handoff/audit/validate_handoff.py
+*.egg-info/
+docs/integration/PROJECT_AUDIT.md
+
+# Regenerated public synthetic geometry fixtures only.
+!apps/web/public/synthetic-demo/*.mp4
