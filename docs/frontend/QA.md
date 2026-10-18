@@ -79,7 +79,7 @@ The initial automatic approval attempt for the final desktop check timed out bef
 
 ## Not yet established
 
-- Connection to Codex A's deployed GPU service; upload → actual model inference → real competition evidence. API/storage/media/review/export were exercised locally with synthetic inputs as recorded below.
+- Connection to participant A's deployed GPU service; upload → actual model inference → real competition evidence. API/storage/media/review/export were exercised locally with synthetic inputs as recorded below.
 - Performance, detection quality, current legal-source correctness or unseen-camera generalization.
 - Real MOV source/preview synchronization, verified privately by a human.
 - Actual model startup, GPU memory, worker crash recovery and offline processing on the RTX 4060 host.
