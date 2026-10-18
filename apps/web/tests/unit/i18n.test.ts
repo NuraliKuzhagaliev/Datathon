@@ -19,7 +19,7 @@ describe('English localization', () => {
     expect(translate('Очередь заполнена. Повторите загрузку позже. Сервер рекомендует подождать 12 сек.', 'en')).toBe('The queue is full. Try uploading again later. The server recommends waiting 12 seconds.');
   });
   it('has translations for every explicit UI translation call and matches placeholders', () => {
-    const files = ['App.tsx','components/ui.tsx','features/QuickStart.tsx','features/Upload.tsx','features/Rules.tsx','features/Evidence.tsx'];
+    const files = ['App.tsx','components/ui.tsx','features/QuickStart.tsx','features/Cases.tsx','features/ReviewDrafts.tsx','features/Upload.tsx','features/Rules.tsx','features/Evidence.tsx'];
     const missing: string[] = [];
     for (const file of files) {
       const tree = ts.createSourceFile(file, readFileSync(`apps/web/src/${file}`,'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);

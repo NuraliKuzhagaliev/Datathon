@@ -7,25 +7,35 @@ import { useRequest } from '../lib/useRequest';
 import { mapTime, mappedInterval, time } from '../lib/time';
 import { ErrorNotice, Loading, Modal, Tag } from '../components/ui';
 import { RuleDrawer } from './Rules';
+import { useReviewDrafts } from './ReviewDrafts';
 
 const stages = { queued: 'В очереди', decoding: 'Подготовка видео', screening: 'Просмотр видеоряда', verifying: 'Проверка наблюдений', packaging: 'Подготовка доказательств', complete: 'Завершено', failed: 'Ошибка обработки' };
 const decisions = { unreviewed: 'Не проверено', confirmed: 'Подтверждено проверяющим', dismissed: 'Отклонено проверяющим', uncertain: 'Нужна дополнительная проверка' };
 
 function ReviewForm({ api, job, event }: { api: ReviewApi; job: string; event: UiEvent }) {
-  const { t } = useI18n();
-  const [decision, setDecision] = useState<ReviewInput['decision']>(event.review.decision); const [note, setNote] = useState(event.review.note);
+  const { t, locale } = useI18n();
+  const drafts = useReviewDrafts();
+  const draft = drafts.read(job, event); const { decision, note } = draft.input;
+  const dirty = drafts.changed(draft);
+  const setDecision = (value: ReviewInput['decision']) => drafts.edit(job, event, { decision: value, note });
+  const setNote = (value: string) => drafts.edit(job, event, { decision, note: value });
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState(''); const [error, setError] = useState(''); const active = useRef<AbortController | null>(null);
   useEffect(() => () => active.current?.abort(), []);
   async function save() {
     if (busy) return;
     const controller = new AbortController(); active.current = controller; setBusy(true); setError(''); setMessage('');
-    try { await api.review(job, event.event_id, { decision, note }, controller.signal); if (!controller.signal.aborted) setMessage(api.synthetic ? 'Сохранено в памяти демо. Исходный результат не изменён.' : 'Решение сохранено. Исходный результат модели не изменён.'); }
+    try {
+      const saved = await api.review(job, event.event_id, { decision, note }, controller.signal);
+      if (saved.event_id !== event.event_id) throw new Error('Сервер подтвердил решение для другого события. Повторите сохранение.');
+      if (!controller.signal.aborted) { drafts.acknowledge(job, saved); setMessage(api.synthetic ? 'Сохранено в памяти демо. Исходный результат не изменён.' : 'Решение сохранено. Исходный результат модели не изменён.'); }
+    }
     catch (e) { if (!controller.signal.aborted) setError(errorText(e)); }
     finally { if (!controller.signal.aborted) setBusy(false); }
   }
   return <div className="review-form"><h3><FileCheck2 size={17}/>{t("Решение проверяющего")}</h3><p className="muted small">{t("Ваша оценка хранится отдельно от вывода модели.")}</p>
     <div className="decision-group" role="group" aria-label={t("Решение проверяющего")}>{([['confirmed', CircleCheck, t("Подтвердить")], ['dismissed', CircleX, t("Отклонить")], ['uncertain', CircleHelp, t("Не уверен")]] as const).map(([value, Icon, label]) => <button key={value} aria-pressed={decision === value} disabled={busy} className={decision === value ? 'selected' : ''} onClick={() => { setDecision(value); setMessage(''); }}><Icon size={17}/>{label}</button>)}</div>
     <details className="note-details"><summary>{t("Заметка проверяющего")}{note ? t(" · есть текст") : t(" · добавить")}</summary><label className="field">{t("Заметка")}<textarea aria-label={t("Заметка")} rows={3} maxLength={2000} disabled={busy} value={note} onChange={e => { setNote(e.target.value); setMessage(''); }} placeholder={t("Что помогло принять решение?")}/></label></details>
+    <p className={`draft-status small ${dirty ? 'amber' : 'muted'}`} aria-live="polite">{dirty ? t("Черновик не сохранён. Переключение дел и событий сохраняет его в этом сеансе; перед выходом сохраните решение. В ZIP попадут только сохранённые решения.") : draft.saved.updated_at ? t("Сохранено: {0}", [new Date(draft.saved.updated_at).toLocaleString(locale === 'en' ? 'en-GB' : 'ru-RU')]) : t("Решение ещё не сохранено.")}</p>
     <div className="row"><small className="muted">{note.length} / 2000</small><button className="button primary compact" disabled={busy} onClick={save}>{busy ? t("Сохранение…") : t("Сохранить решение")}</button></div>
     {error && <ErrorNotice message={error}/>}<p role="status" className="save-message">{t(message)}</p>
   </div>;
@@ -40,6 +50,7 @@ function ScanProgress() { return <Film size={30}/>; }
 
 export function Evidence({ api, id, back, newAnalysis, focused, setFocused }: { api: ReviewApi; id: string; back: () => void; newAnalysis: () => void; focused: boolean; setFocused: (value: boolean) => void }) {
   const { t } = useI18n();
+  const drafts = useReviewDrafts();
   const { locale } = useI18n();
   const content = (value: string) => api.synthetic ? api.demoText?.(value, locale) ?? value : value;
   const frameImage = (value: string) => api.synthetic ? api.demoImage?.(value, locale) ?? value : value;
@@ -130,7 +141,7 @@ export function Evidence({ api, id, back, newAnalysis, focused, setFocused }: { 
     {request.error && <ErrorNotice message={request.error} retry={request.retry}/>}{notice && <div className="notice" role="status"><Info size={18}/>{t(notice)}</div>}
     {data.status !== 'done' ? <><Stage data={data} retry={request.retry}/>{data.status === 'failed' && <button className="button primary" onClick={newAnalysis}>{t("Загрузить другое видео")}</button>}</> : <>
     <div className="desk">
-      <aside className="event-rail"><div className="panel-heading"><span>{t("События")}</span><span className="count">{data.events.length}</span></div><div className="event-list">{data.events.map((item, index) => <button key={item.event_id} className={`event-card ${index === selected ? 'active' : ''}`} aria-pressed={selected === index} onClick={() => select(index)}><span className="row"><span className="mono event-time">{time(item.timecode_sec)}</span><span className="event-index">{String(index + 1).padStart(2, '0')}</span></span><strong>{content(item.type)}</strong><span className="event-state"><span className={`state-dot ${item.review.decision === 'unreviewed' ? 'amber' : 'mint'}`}/>{t(decisions[item.review.decision])}</span></button>)}</div>
+      <aside className="event-rail"><div className="panel-heading"><span>{t("События")}</span><span className="count">{data.events.length}</span></div><div className="event-list">{data.events.map((item, index) => <button key={item.event_id} className={`event-card ${index === selected ? 'active' : ''}`} aria-pressed={selected === index} onClick={() => select(index)}><span className="row"><span className="mono event-time">{time(item.timecode_sec)}</span><span className="event-index">{String(index + 1).padStart(2, '0')}</span></span><strong>{content(item.type)}</strong><span className="event-state"><span className={`state-dot ${drafts.read(id, item).saved.decision === 'unreviewed' ? 'amber' : 'mint'}`}/>{drafts.changed(drafts.read(id, item)) ? t('Есть несохранённый черновик') : t(decisions[drafts.read(id, item).saved.decision])}</span></button>)}</div>
       {!data.events.length && <div className="rail-empty"><CircleCheck size={26}/><p>{t("Поддерживаемых событий не найдено")}</p></div>}
       <div className="rail-bottom"><kbd>J</kbd><kbd>K</kbd><span>{t("следующее / предыдущее")}</span></div></aside>
       <div className="media-panel"><div className="panel-heading"><span><Eye size={16}/>{t("Материалы дела")}</span><div className="segmented"><button aria-pressed={mediaMode === 'frame'} onClick={() => setMediaMode('frame')}><ImageIcon size={14}/>{t("Кадр")}</button><button aria-pressed={mediaMode === 'video'} disabled={!mediaUrl} onClick={() => setMediaMode('video')}><Film size={14}/>{t("Видео")}</button></div></div>

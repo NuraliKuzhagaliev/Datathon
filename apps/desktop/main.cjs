@@ -7,7 +7,7 @@ const { pathToFileURL } = require('node:url');
 const Ajv = require('ajv/dist/2020').default;
 const { serverOrigin, sourceUrl, insideBundle, backendArguments, checkHealthContract } = require('./security.cjs');
 
-let launcher, viewer, child, activeOrigin, localKey, activeMode, starting = false, quitting = false;
+let launcher, viewer, child, activeOrigin, localKey, activeMode, starting = false, quitting = false, quitRequested = false;
 let startupController;
 const launcherUrl = pathToFileURL(path.join(__dirname, 'launcher.html')).href;
 const repo = path.resolve(__dirname, '../..');
@@ -50,8 +50,21 @@ async function openViewer(origin, mode, key) {
   activeOrigin = origin; activeMode = mode; localKey = key;
   viewer = new BrowserWindow({ width: 1440, height: 960, minWidth: 900, minHeight: 700, backgroundColor: '#f7f7f8', icon: path.join(__dirname, 'assets/app.png'), autoHideMenuBar: true, show: false, title: 'CashProof', webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false } });
   secure(viewer, url => new URL(url).origin === activeOrigin);
+  viewer.webContents.on('will-prevent-unload', event => {
+    const choice = dialog.showMessageBoxSync(viewer, {
+      type: 'question', title: 'Несохранённые изменения',
+      message: 'В окне есть несохранённые изменения. При продолжении они будут потеряны.',
+      buttons: ['Остаться', 'Продолжить без сохранения'], defaultId: 0, cancelId: 0,
+    });
+    if (choice === 1) event.preventDefault();
+    else quitRequested = false;
+  });
   viewer.webContents.on('render-process-gone', () => { showLauncher(); status('Окно интерфейса завершилось. Вернитесь к выбору режима.', true); });
-  viewer.on('closed', () => { viewer = undefined; void stopOwnedBackend(); if (!quitting) showLauncher(); });
+  viewer.on('closed', () => {
+    viewer = undefined;
+    if (quitRequested) finishQuit();
+    else { void stopOwnedBackend(); if (!quitting) showLauncher(); }
+  });
   await viewer.loadURL(origin);
   viewer.show(); if (launcher && !launcher.isDestroyed()) launcher.hide();
 }
@@ -129,13 +142,20 @@ else {
     });
     ipcMain.handle('cashproof:config', event => { if (!isSender(event, viewer, activeOrigin)) throw new Error('Недопустимый источник.'); return { mode: activeMode, apiKey: activeMode === 'offline' ? localKey : null, contractVersion: '1.0.0' }; });
     ipcMain.handle('cashproof:source', async (event, url) => { if (!isSender(event, viewer, activeOrigin) || typeof url !== 'string') throw new Error('Недопустимый источник.'); await shell.openExternal(sourceUrl(url)); });
-    ipcMain.handle('cashproof:launcher', async event => { if (!isSender(event, viewer, activeOrigin)) throw new Error('Недопустимый источник.'); await stopOwnedBackend(); if (viewer) viewer.close(); showLauncher(); });
+    ipcMain.handle('cashproof:launcher', event => { if (!isSender(event, viewer, activeOrigin)) throw new Error('Недопустимый источник.'); viewer.close(); });
     showLauncher();
   });
 }
-app.on('window-all-closed', () => { if (!starting) app.quit(); });
+function finishQuit() {
+  if (quitting) return;
+  quitting = true;
+  void stopOwnedBackend().finally(() => app.quit());
+}
+app.on('window-all-closed', () => { if (!starting && !quitting) app.quit(); });
 app.on('before-quit', event => {
   if (quitting) return;
-  event.preventDefault(); quitting = true;
-  void stopOwnedBackend().finally(() => app.quit());
+  event.preventDefault();
+  // The renderer gets to preserve a draft before its owned backend is stopped.
+  if (viewer && !viewer.isDestroyed()) { quitRequested = true; viewer.close(); }
+  else finishQuit();
 });
