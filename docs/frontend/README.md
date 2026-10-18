@@ -1,4 +1,4 @@
-# CashProof web and desktop — Codex B
+# CashProof web and desktop — participant B
 
 ## Review workflow update — 18 October 2026
 
