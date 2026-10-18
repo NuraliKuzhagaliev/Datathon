@@ -1,4 +1,4 @@
-# Codex B → Codex A: integration requests
+# participant B → participant A: integration requests
 
 Frontend implementation consumes contract 1.0.0 without changing shared files. This is a request log, not evidence that the backend has been integrated.
 

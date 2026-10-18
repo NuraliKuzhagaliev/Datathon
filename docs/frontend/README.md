@@ -1,4 +1,4 @@
-# CashProof web and desktop — Codex B
+# CashProof web and desktop — participant B
 
 ## Setup
 

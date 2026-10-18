@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.
 const require = createRequire(import.meta.url);
 const connected = process.argv.includes('--connected');
 const backend = path.join(root, 'releases/backend');
-if (!connected && !fs.existsSync(path.join(backend, 'launch.json'))) throw new Error('Offline release requires Codex A’s releases/backend/launch.json. Use build:desktop:connected only for an explicitly connected-only build.');
+if (!connected && !fs.existsSync(path.join(backend, 'launch.json'))) throw new Error('Offline release requires participant A’s releases/backend/launch.json. Use build:desktop:connected only for an explicitly connected-only build.');
 if (!fs.existsSync(path.join(root, 'apps/web/dist/index.html'))) throw new Error('Run build:web first.');
 await build({ targets: Platform.WINDOWS.createTarget('dir'), config: {
   electronDist: path.dirname(require('electron')),

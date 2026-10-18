@@ -1,6 +1,6 @@
 # Integration checkpoints
 
-Release integrator: Codex A. Working specification: `packages/contracts/openapi.json` and `forte_handoff/SHARED_CONTRACT.md`.
+Release integrator: participant A. Working specification: `packages/contracts/openapi.json` and `forte_handoff/SHARED_CONTRACT.md`.
 
 | Hour | Required integration evidence |
 | --- | --- |
