@@ -52,6 +52,14 @@ BOOT_ID = secrets.token_hex(8)
 KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
+class ModelResponseError(SafeStop):
+    def __init__(self, code, body):
+        super().__init__(code)
+        self.model_text = "".join(p.get("text", "") for c in body.get("candidates", [])[:1]
+                                  for p in c.get("content", {}).get("parts", [])
+                                  if not p.get("thought"))[:32768]
+
+
 def live_guard():
     if MODEL not in ("gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite"):
         raise SafeStop("MODEL_NOT_IN_VERIFIED_FREE_ALLOWLIST")
@@ -177,7 +185,7 @@ class Selection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scenario: str
     engine: Literal["recorded", "gemini"] = "recorded"
-    profile: Literal["frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high"] | None = None
+    profile: Literal["frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high", "native-video-v9-high"] | None = None
 
 
 def analyze(selection):
@@ -188,9 +196,12 @@ def analyze(selection):
     if digest != row["video_sha256"]:
         raise SafeStop("BUNDLED_SYNTHETIC_HASH_MISMATCH")
     profile = (selection.profile or PROFILE) if selection.engine == "gemini" else "frame-sides-v3"
-    if profile not in ("frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high"):
+    if profile not in ("frame-sides-v3", "temporal-witness-v5", "center-sides-v6", "native-video-v7", "native-video-v8-high", "native-video-v9-high"):
         raise SafeStop("UNRECOGNIZED_SYNTHETIC_PROMPT_PROFILE")
-    native = profile in ("native-video-v7", "native-video-v8-high")
+    native = profile.startswith("native-video-")
+    prompt = PROMPT_V2 if native else WITNESS_PROMPT if profile == "temporal-witness-v5" else PROMPT_V4 if profile == "center-sides-v6" else PROMPT_V3
+    if profile == "native-video-v9-high":
+        prompt += "\nFor each reported crossing at time t, use before_time_sec=t-0.25 and after_time_sec=t+0.25. Both must lie inside the video. Check those actual nearby moments and their center sides. Keep all crossings sorted and event_times_sec exactly equal to left_to_right crossing times. Return numeric seconds, not strings. A completed pass has one center crossing even while the square overlaps red for several frames.\n"
     parts, sampled = visual_input(path) if profile == "temporal-witness-v5" else ordered_frames(path)
     frames = [{"frame_id": f["frame_id"], "timestamp_sec": f["timestamp_sec"]}
               for f in sampled]  # Scoring labels are never detector inputs.
@@ -209,19 +220,22 @@ def analyze(selection):
         try:
             with httpx.Client(timeout=120, follow_redirects=False, trust_env=False) as client:
                 body = api_json(client, "POST", f"/models/{MODEL}:generateContent", key, {
-                    "contents": [{"role": "user", "parts": [*parts, {"text": PROMPT_V2 if native else WITNESS_PROMPT if profile == "temporal-witness-v5" else PROMPT_V4 if profile == "center-sides-v6" else PROMPT_V3}]}],
+                    "contents": [{"role": "user", "parts": [*parts, {"text": prompt}]}],
                     "generationConfig": {"temperature": 0, "maxOutputTokens": 8192 if native or profile == "center-sides-v6" else 4096,
                         "responseMimeType": "application/json",
                         "responseSchema": SCHEMA_V2 if native else WITNESS_SCHEMA if profile == "temporal-witness-v5" else {"type": "OBJECT", "properties": {"frame_sides": {
                             "type": "ARRAY", "minItems": len(frames), "maxItems": len(frames),
                             "items": {"type": "STRING", "enum": ["left", "on", "right"]}}},
                             "required": ["frame_sides"]},
-                        **({"mediaResolution": "MEDIA_RESOLUTION_HIGH"} if profile == "native-video-v8-high" else {}),
+                        **({"mediaResolution": "MEDIA_RESOLUTION_HIGH"} if profile in ("native-video-v8-high", "native-video-v9-high") else {}),
                         **({"thinkingConfig": {"thinkingBudget": 1024}}
                            if MODEL.startswith("gemini-2.5-") else
                            {"thinkingConfig": {"thinkingLevel": "HIGH"}}
                            if profile == "center-sides-v6" else {})}})
-            raw = parse_witnesses(body, frames) if profile == "temporal-witness-v5" else validate_result(body, row["duration_sec"], witnesses=native, frames=None if native else frames)
+            try:
+                raw = parse_witnesses(body, frames) if profile == "temporal-witness-v5" else validate_result(body, row["duration_sec"], witnesses=native, frames=None if native else frames)
+            except SafeStop as exc:
+                raise ModelResponseError(str(exc), body) from None
             model_version = body.get("modelVersion", MODEL)
         except Exception:
             HALTED = True  # Never automatically retry/resume after a provider failure.
@@ -261,6 +275,9 @@ async def run_job(job_id, selection):
     try:
         result = await asyncio.to_thread(analyze, selection)
         JOBS[job_id].update(status="done", result=result)
+    except ModelResponseError as exc:
+        JOBS[job_id].update(status="failed", error={"code": str(exc)},
+                           model_diagnostic={"synthetic_only": True, "raw_model_text": exc.model_text})
     except SafeStop as exc:
         JOBS[job_id].update(status="failed", error={"code": str(exc)})
     except Exception:
