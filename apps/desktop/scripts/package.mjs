@@ -14,7 +14,7 @@ if (!outputName || !/^[a-z0-9][a-z0-9-]{0,48}$/.test(outputName)) throw new Erro
 const backendFlag = process.argv.indexOf('--backend-dir');
 if (backendFlag >= 0 && (!process.argv[backendFlag + 1] || process.argv[backendFlag + 1].startsWith('--'))) throw new Error('--backend-dir requires a bundle directory.');
 const backend = backendFlag < 0 ? path.join(root, 'releases/backend') : path.resolve(root, process.argv[backendFlag + 1]);
-if (!connected && !fs.existsSync(path.join(backend, 'launch.json'))) throw new Error('Offline release requires Codex A’s releases/backend/launch.json. Use build:desktop:connected only for an explicitly connected-only build.');
+if (!connected && !fs.existsSync(path.join(backend, 'launch.json'))) throw new Error('Offline release requires participant A’s releases/backend/launch.json. Use build:desktop:connected only for an explicitly connected-only build.');
 if (!fs.existsSync(path.join(root, 'apps/web/dist/index.html'))) throw new Error('Run build:web first.');
 await build({ targets: Platform.WINDOWS.createTarget('dir'), config: {
   electronDist: path.dirname(require('electron')),
