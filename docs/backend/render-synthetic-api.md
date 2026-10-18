@@ -7,6 +7,8 @@ No video upload, user prompt, remote URL or private footage input is available.
 
 ## Deployment
 
+Public console/API base: https://cashproof-synthetic-api.onrender.com
+
 Single Python web service; explicitly select **Free**, one instance, Frankfurt.
 No database, disk, worker, paid compute or paid fallback is provisioned. Existing
 Render services are untouched. Free instance hours are shared with the workspace.
@@ -52,10 +54,15 @@ background wakeups or repeated quota probes are installed.
 - `GET /api/synthetic/jobs/{job_id}`: same key, processing/done/failed result.
 - `/api/v1/analyze` rejects real-video analysis. **Not a jury submission endpoint.**
 
-Recorded mode uses captured Gemini frame-side predictions, then actually decodes
-the checked-in source on the server and refines ambiguous observations using
+Recorded mode uses captured Gemini frame-side predictions. Independently, the
+server decodes the checked-in source and measures **every sampled frame** using
 pixel geometry. Live mode sends only sampled synthetic frames to Gemini before
-the same refinement. Both preserve raw model output separately from correction.
+the same independent baseline. Both preserve raw model output separately from
+pixel measurements. A fresh Flash Lite cloud test missed the near-line start;
+measuring only model-labelled 'on' frames cannot detect confident model errors.
+The full-frame baseline is a synthetic geometry algorithm, not an improved VLM
+and not a method for detecting banking violations. Do not report its score as
+Gemini accuracy.
 Source hashes and sampled PTS are checked. Expected event times are scoring data,
 not detection inputs. `new_gemini_requests` distinguishes the modes explicitly.
 

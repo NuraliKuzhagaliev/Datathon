@@ -16,6 +16,7 @@ import secrets
 import sys
 import time
 
+import av
 import httpx
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,7 +31,7 @@ from gemini_synthetic_smoke import (  # noqa: E402
     PROMPT_V3, SafeStop, api_json, events_from_sides, ordered_frames,
     validate_result, verify_free_tier,
 )
-from synthetic_geometry import refine_ambiguous  # noqa: E402
+from synthetic_geometry import measure_side  # noqa: E402
 
 ASSETS = REPO / "apps/web/public/synthetic-demo"
 CATALOG = {c["id"]: c for c in json.loads(
@@ -204,14 +205,30 @@ def analyze(selection):
             raise
     else:
         raw = events_from_sides({"frame_sides": row["gemini_sides"]}, frames)
-    sides, measurements = refine_ambiguous(path, frames, raw["frame_sides"])
+    # Independent synthetic baseline: measure every sampled source frame. A VLM
+    # can be confidently wrong, so limiting this check to its 'on' labels misses
+    # those errors. This is explicitly pixel geometry, never model accuracy.
+    needed = {round(f["timestamp_sec"], 6): i for i, f in enumerate(frames)}
+    sides, measurements = [None] * len(frames), []
+    with av.open(str(path)) as container:
+        for frame in container.decode(video=0):
+            pts = round(float(frame.pts * frame.time_base), 6)
+            if pts not in needed:
+                continue
+            index = needed.pop(pts)
+            measured = measure_side(frame.to_ndarray(format="rgb24"))
+            sides[index] = measured["side"]
+            measurements.append({**frames[index], "model_side": raw["frame_sides"][index], **measured})
+    if needed:
+        raise SafeStop("SOURCE_FRAME_NOT_FOUND")
     result = events_from_sides({"frame_sides": sides}, frames)
     return {"synthetic_only": True, "engine": selection.engine,
             "new_gemini_requests": int(selection.engine == "gemini"),
             "model_version": model_version, "source_sha256": digest,
+            "geometry_method": "independent_pixel_measurement_of_every_sampled_source_frame",
             "raw_gemini_result": raw, "geometry_result": result,
             "geometry_observations": measurements, "frames": frames,
-            "disclaimer": "Blue square/red line geometry; not a bank violation detector."}
+            "disclaimer": "Independent blue-square/red-line geometry. Does not establish Gemini accuracy or detect bank violations."}
 
 
 async def run_job(job_id, selection):

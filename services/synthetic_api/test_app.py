@@ -99,7 +99,9 @@ def test_live_provider_payload_and_separate_geometry(api, monkeypatch):
         assert route == "/models/gemini-2.5-flash:generateContent"
         assert "expected" not in json.dumps(payload)
         assert "reference_event_times" not in json.dumps(payload)
-        return {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps({"frame_sides": app.CATALOG['near_line_start']['gemini_sides']})}]}}]}
+        # Confidently wrong predictions must remain visible. Pixel measurements
+        # are an independent synthetic baseline, not a claimed model correction.
+        return {"candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": json.dumps({"frame_sides": ['right'] * len(app.CATALOG['near_line_start']['frames'])})}]}}]}
     monkeypatch.setattr(app, "api_json", provider)
     response = client.post("/api/synthetic/jobs", json={"scenario": "near_line_start", "engine": "gemini"}, headers=AUTH)
     row = wait(client, response.json()["job_id"])
@@ -107,6 +109,7 @@ def test_live_provider_payload_and_separate_geometry(api, monkeypatch):
     assert row["result"]["new_gemini_requests"] == 1
     assert row["result"]["raw_gemini_result"]["event_times_sec"] == []
     assert row["result"]["geometry_result"]["event_times_sec"] == [1.5]
+    assert len(row["result"]["geometry_observations"]) == len(app.CATALOG['near_line_start']['frames'])
     assert len(calls) == 1
     app.LIVE_CALLS = 8
     assert client.get("/health/ready").json()["gemini_live_ready"] is False
